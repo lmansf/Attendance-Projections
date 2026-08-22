@@ -613,7 +613,12 @@ const DATA = /*__DASHBOARD_DATA__*/null;
   }
   selEl.addEventListener('change', drawScatter);
   if (selEl.options.length) {
-    const top = DATA.importance.length ? DATA.importance[0].feature : null;
+    // default to the most important driver that isn't (near-)binary —
+    // a two-column scatter is a poor first view
+    const continuous = DATA.importance.map(d => d.feature).find(k =>
+      F[k] && new Set(F[k].values.filter(v => v !== null)).size > 8);
+    const top = continuous ||
+      (DATA.importance.length ? DATA.importance[0].feature : null);
     selEl.value = (top && F[top]) ? top : selEl.options[0].value;
     drawScatter();
   }
@@ -634,11 +639,14 @@ const DATA = /*__DASHBOARD_DATA__*/null;
 
   // ---------------- Methodology ----------------
   document.getElementById('method').innerHTML =
-    '<p><b>Model.</b> XGBoost on weather, calendar &amp; holidays, EUROCONTROL ' +
-    'flight volumes, operating hours and attendance history; the last 30 ' +
-    'operating days are held out and never seen in training. The week-ahead ' +
-    'model additionally drops anything needing data fresher than 7 days before ' +
-    'the target: ' + M.week_ahead_dropped.join(', ').toLowerCase() + '.</p>' +
+    '<p><b>Model.</b> An equal-weight blend of LightGBM, ridge regression and ' +
+    'a random forest on weather, calendar &amp; holidays, EUROCONTROL flight ' +
+    'volumes, operating hours and attendance history — the blend was chosen ' +
+    'by rolling-origin cross-validation inside the training period, and the ' +
+    'last 30 operating days are held out, never seen in training. The ' +
+    'week-ahead model additionally drops anything needing data fresher than ' +
+    '7 days before the target: ' +
+    M.week_ahead_dropped.join(', ').toLowerCase() + '.</p>' +
     '<p><b>Honest caveats.</b> Week-ahead uses realized weather where ' +
     'production would use a weather forecast (slightly flattering). Labor ' +
     'dollars are illustrative conversions of your ratio inputs, not measured ' +

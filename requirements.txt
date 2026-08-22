@@ -1,7 +1,7 @@
 pandas>=2.0
 numpy>=1.24
-scikit-learn>=1.3
-xgboost>=2.0
+scikit-learn>=1.4      # >=1.4 for NaN support in RandomForest
+lightgbm>=4.0
 requests>=2.31
 holidays>=0.40
 kagglehub>=0.2
@@ -9,4 +9,4 @@ python-dateutil>=2.8
 # notebook extras
 matplotlib>=3.7
 optuna>=3.4
-lightgbm>=4.0
+xgboost>=2.0

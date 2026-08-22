@@ -1,8 +1,21 @@
-# Attendance Projections — XGBoost with Weather & Flight Data
+# Attendance Projections — Forecasting with Weather & Flight Data
 
 Daily attendance forecasting for **PortAventura World** (or **Tivoli Gardens**) with an
 interactive dashboard that treats the **last 30 operating days of the dataset as a live
 forecast**: the model never sees them during training.
+
+**The model** is an equal-weight blend of three diverse learners — LightGBM (L1
+objective), a one-hot Ridge regression, and a random forest — on a log1p target.
+The blend was selected by rolling-origin cross-validation inside the training
+period (4 × 30-day folds; the dashboard holdout was never touched during
+selection): it beat a tuned single XGBoost by ~6% MAE and cut mean bias from
+~+90 to ~-7 guests/day out-of-fold. Also tested and rejected on the same
+backtest: an MLP (diverges at ~900 training rows), per-weekday residual
+corrections, and same-weekday-average blending (all hurt out-of-fold MAE). The
+80% planning band pools out-of-fold forecast ratios from recent rolling folds
+*and* same-season folds in prior years, taking the wider arm — forecast error
+is seasonally heteroskedastic, and a staffing band should fail toward
+over-coverage. (The original XGBoost analysis lives on in the notebook.)
 
 **Live dashboard:** deploys to Vercel as a static page — `public/index.html` (a synthetic demo build ships with the repo so the deployment works before any downloads).
 

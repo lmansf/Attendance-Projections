@@ -160,6 +160,8 @@ def add_calendar_features(df: pd.DataFrame, park: str) -> pd.DataFrame:
     doy = df["Date"].dt.dayofyear
     df["DayOfYear_Sin"] = np.sin(2 * np.pi * doy / 365.25)
     df["DayOfYear_Cos"] = np.cos(2 * np.pi * doy / 365.25)
+    df["DayOfYear_Sin2"] = np.sin(4 * np.pi * doy / 365.25)
+    df["DayOfYear_Cos2"] = np.cos(4 * np.pi * doy / 365.25)
     return df
 
 
@@ -330,12 +332,19 @@ def add_pack2_features(df: pd.DataFrame, files, park: str) -> pd.DataFrame:
     df["Is_Summer_Peak"] = df["Date"].dt.month.isin([7, 8]).astype(int)
 
     df["Entries_Lag_14"] = df["Entries"].shift(14)
+    df["Entries_Lag_21"] = df["Entries"].shift(21)
+    df["Entries_Lag_28"] = df["Entries"].shift(28)
     df["Entries_Lag_364"] = df["Entries"].shift(364)
     df["Entries_SameDOW_Mean4"] = (df.groupby("DayOfWeek")["Entries"]
                                    .transform(lambda s: s.shift(1)
                                               .rolling(4, min_periods=2).mean()))
     df["Entries_Roll_Std_7"] = df["Entries"].shift(1).rolling(7).std()
     df["Entries_WoW_Diff"] = df["Entries_Lag_1"] - df["Entries_Lag_7"]
+    # week-safe variants: 7-day stats ending 7 days before the target, and a
+    # lag-to-lag momentum term - all usable by the week-ahead model
+    df["Entries_WkSafe_Mean7"] = df["Entries"].shift(7).rolling(7).mean()
+    df["Entries_WkSafe_Std7"] = df["Entries"].shift(7).rolling(7).std()
+    df["Entries_Lag7_minus_14"] = df["Entries_Lag_7"] - df["Entries_Lag_14"]
 
     eps = 1e-6
     if "Arr_Next_Week" in df.columns:
