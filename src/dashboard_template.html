@@ -5,46 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Daily attendance forecast for theme-park staffing and ad-spend decisions — week-ahead model accuracy, labor cost of forecast error, and drivers.">
 <title>Attendance Forecast — Staffing &amp; Ad-Spend Dashboard</title>
-<meta name="theme-color" content="#f5f0e4">
+<meta name="theme-color" content="#c3ddf0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎢</text></svg>">
 <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
 <style>
-  :root { --ink:#2a2119; --sub:#6b5d4a; --muted:#776b55;
-          --blue:#0c82a8; --blue-text:#0d5e7d;
-          --orange:#bd6317; --orange-text:#8f4a10;
-          --green:#54611f;
-          --bg:#f5f0e4; --card:#fffdf7; --line:#e8e0cd;
+  :root { --ink:#2b2013; --sub:#6a5a44; --muted:#75674e;
+          --blue:#1268c8; --blue-text:#0d549e;
+          --orange:#b3790a; --orange-text:#8a5c06;
+          --green:#0b6b5c;
+          --bg:#ecdfbc; --card:#fffdf6; --line:#e6dcc2;
           --serif:"Marcellus",Georgia,"Times New Roman",serif; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
-         Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+         Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  /* the page is the landscape - sky above, desert below; a fixed underlay
+     keeps the horizon in view at every scroll position (iOS ignores
+     background-attachment:fixed, so paint it on a fixed element instead) */
+  body::before { content:""; position:fixed; inset:0; z-index:-1;
+                 background:linear-gradient(180deg,#c3ddf0 0%,#e4ddc8 52%,
+                                            #ecd9ad 100%); }
   .wrap { max-width:1200px; margin:0 auto; padding:24px 20px 48px; }
   header h1 { margin:0 0 4px; font-size:1.55rem; font-family:var(--serif);
               font-weight:400; letter-spacing:.01em; }
   #subtitle { color:var(--sub); font-size:.9rem; }
+  header::after { content:""; display:block; height:3px; margin-top:12px;
+                  border-radius:2px; background:linear-gradient(90deg,
+                  #1268c8, #0e8f7a 30%, #b3790a 62%, #d24e1e); }
   .badge { display:inline-block; margin-left:10px; padding:3px 10px;
            border-radius:999px; font-size:.72rem; font-weight:600;
            vertical-align:middle; }
-  .badge.real { background:#eef0dd; color:#54611f; }
-  .badge.demo { background:#f9ecd9; color:#8f4a10; }
-  .goal { background:#eaf2f1; border-left:4px solid var(--blue);
+  .badge.real { background:#ddf0e9; color:#0b6b5c; }
+  .badge.demo { background:#fbe3d4; color:#a83a12; }
+  .goal { background:rgba(255,253,246,.72); border-left:4px solid var(--blue);
           border-radius:8px 8px 8px 20px;
           padding:12px 16px; margin:16px 0 6px; font-size:.95rem; line-height:1.45; }
   .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
              gap:12px; margin:16px 0; }
   .kpi { background:var(--card); border:1px solid var(--line);
-         border-radius:10px 10px 10px 24px;
-         padding:14px 16px; }
+         border-radius:10px 10px 10px 24px; padding:14px 16px;
+         box-shadow:0 14px 26px -18px rgba(74,52,15,.4); }
   .kpi-v { font-size:1.3rem; font-weight:650; }
   .kpi-s { font-size:.85rem; color:var(--sub); margin-top:1px; }
   .kpi-l { color:var(--muted); font-size:.72rem; margin-top:5px;
            text-transform:uppercase; letter-spacing:.05em; }
   .card { background:var(--card); border:1px solid var(--line);
           border-radius:14px 14px 14px 32px;
-          padding:18px 20px; margin:18px 0; }
+          padding:18px 20px; margin:18px 0;
+          box-shadow:0 18px 32px -20px rgba(74,52,15,.4); }
   .card h2 { margin:0 0 6px; font-size:1.08rem; font-family:var(--serif);
             font-weight:400; }
   .hint { color:var(--sub); font-size:.85rem; margin:0 0 12px; line-height:1.45; }
@@ -57,7 +67,7 @@
 
   /* Labor budget panel */
   .assume { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px;
-            background:#f7f3e8; border:1px solid var(--line); border-radius:8px;
+            background:#f6efdb; border:1px solid var(--line); border-radius:8px;
             padding:10px 14px; margin:0 0 14px; font-size:.85rem; }
   .assume .a-title { font-weight:650; color:var(--sub); font-size:.75rem;
                      text-transform:uppercase; letter-spacing:.05em; }
@@ -77,9 +87,9 @@
   .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
   .chip { padding:3px 9px; border-radius:999px; font-size:.78rem;
           border:1px solid var(--line); font-variant-numeric:tabular-nums; }
-  .chip.hit { background:#eef0dd; color:var(--green); border-color:#d5dab0; }
-  .chip.miss { background:#f9ecd9; color:#8f4a10; border-color:#ecd4ae; }
-  .chip.fa { background:#f2ede0; color:var(--sub); }
+  .chip.hit { background:#ddf0e9; color:var(--green); border-color:#b8ded2; }
+  .chip.miss { background:#fbe3d4; color:#a83a12; border-color:#f0c5ab; }
+  .chip.fa { background:#f1e8d2; color:var(--sub); }
 
   .fgroup { margin:6px 0; display:flex; align-items:baseline; gap:6px; }
   .gname { flex:0 0 110px; font-size:.75rem; font-weight:650;
@@ -87,8 +97,8 @@
   .fpills { flex:1; }
   .pill { display:inline-block; margin:2px 4px 2px 0; padding:3px 9px;
           border:1px solid var(--line); border-radius:999px; font-size:.78rem;
-          cursor:pointer; user-select:none; background:#fbf8ef; color:var(--sub); }
-  .pill:has(input:checked) { background:#e3eef0; border-color:var(--blue);
+          cursor:pointer; user-select:none; background:#fbf7ea; color:var(--sub); }
+  .pill:has(input:checked) { background:#e1ecf8; border-color:var(--blue);
                              color:var(--blue-text); font-weight:600; }
   .pill input { margin-right:5px; vertical-align:-1px; }
   select { font:inherit; padding:5px 8px; border:1px solid var(--line);
@@ -244,8 +254,8 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     return;
   }
   const M = DATA.meta, H = DATA.holdout, C = DATA.context, F = DATA.features;
-  const BLUE = '#0c82a8', ORANGE = '#bd6317',
-        GRAY = '#a89a86', GRAY_L = '#d6cbb4', GRID = '#f0ead9';
+  const BLUE = '#1268c8', ORANGE = '#b3790a',
+        GRAY = '#a5936d', GRAY_L = '#ddceaa', GRID = '#f0e8d2';
   const fmt = x => Math.round(x).toLocaleString('en-US');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const fmtDate = iso => MONTHS[+iso.slice(5, 7) - 1] + ' ' + (+iso.slice(8, 10));
@@ -295,7 +305,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
 
   const base = {
     margin: { t: 20, r: 16, b: 44, l: narrow ? 48 : 58 },
-    font: { size: 12, color: '#6b5d4a',
+    font: { size: 12, color: '#6a5a44',
             family: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif' },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
@@ -320,20 +330,20 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     { x: H.dates, y: H.band_lo, mode: 'lines', line: { width: 0 },
       hoverinfo: 'skip', showlegend: false },
     { x: H.dates, y: H.band_hi, mode: 'lines', line: { width: 0 },
-      fill: 'tonexty', fillcolor: 'rgba(189,99,23,0.10)',
+      fill: 'tonexty', fillcolor: 'rgba(179,121,10,0.13)',
       name: '80% range', hoverinfo: 'skip', legendrank: 1003 },
     { x: H.dates, y: H.pred_day, name: 'Day-ahead (reference)', mode: 'lines',
-      line: { color: '#8a7d6b', width: 1.2, dash: 'dot' }, legendrank: 1004,
+      line: { color: '#8a7a5c', width: 1.2, dash: 'dot' }, legendrank: 1004,
       visible: narrow ? 'legendonly' : true,
       hovertemplate: '%{y:,.0f}<extra>Day-ahead</extra>' },
     { x: H.dates, y: H.actual, name: 'Actual', mode: 'lines+markers',
       line: { color: BLUE, width: 2 }, legendrank: 1001,
-      marker: { size: 6, line: { color: '#fffdf7', width: 1.5 } },
+      marker: { size: 6, line: { color: '#fffdf6', width: 1.5 } },
       hovertemplate: '%{y:,.0f}<extra>Actual</extra>' },
     { x: H.dates, y: H.pred_week, name: 'Week-ahead forecast',
       mode: 'lines+markers', legendrank: 1002,
       line: { color: ORANGE, width: 2, dash: 'dash' },
-      marker: { size: 6, line: { color: '#fffdf7', width: 1.5 } },
+      marker: { size: 6, line: { color: '#fffdf6', width: 1.5 } },
       hovertemplate: '%{y:,.0f}<extra>Week-ahead</extra>' }
   ], mergeAxes(base, {
     height: narrow ? 340 : 420,
@@ -341,13 +351,13 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     shapes: [
       { type: 'rect', x0: H.dates[0], x1: H.dates[H.dates.length - 1],
         y0: 0, y1: 1, yref: 'paper', layer: 'below', line: { width: 0 },
-        fillcolor: 'rgba(42,33,25,0.04)' },
+        fillcolor: 'rgba(18,104,200,0.05)' },
       { type: 'line', x0: H.dates[0], x1: H.dates[0], y0: 0, y1: 1,
-        yref: 'paper', line: { dash: 'dot', color: '#a89a86', width: 1 } }
+        yref: 'paper', line: { dash: 'dot', color: '#a5936d', width: 1 } }
     ],
     annotations: [{ x: H.dates[0], y: 1.05, yref: 'paper',
                     text: 'forecast window →', showarrow: false,
-                    xanchor: 'left', font: { size: 11, color: '#776b55' } }],
+                    xanchor: 'left', font: { size: 11, color: '#75674e' } }],
     yaxis: { title: { text: 'Guests/day' } },
     legend: { orientation: 'h', y: -0.2, traceorder: 'normal' }
   }), cfg);
@@ -393,7 +403,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
       height: 290, barmode: 'relative', bargap: 0.35,
       margin: { t: 8, r: 16, b: 40, l: narrow ? 42 : 52 },
       yaxis: { title: { text: 'Staff-hours vs plan' },
-               zeroline: true, zerolinecolor: '#cfc4ab' },
+               zeroline: true, zerolinecolor: '#d3c49e' },
       legend: { orientation: 'h', y: -0.22 }
     }), cfg);
   }
@@ -422,7 +432,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
   const bl = M.baselines || [];
   const perf = [
     { name: 'Week-ahead model', mae: M.week.mae, n: H.dates.length, color: BLUE },
-    { name: 'Day-ahead model', mae: M.day.mae, n: H.dates.length, color: '#8a7d6b' },
+    { name: 'Day-ahead model', mae: M.day.mae, n: H.dates.length, color: '#8a7a5c' },
   ].concat(bl.map(b => ({ name: b.name, mae: b.mae, n: b.n, color: GRAY_L })))
    .reverse();
   Plotly.newPlot('baselineChart', [{
@@ -431,7 +441,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     type: 'bar', orientation: 'h',
     marker: { color: perf.map(p => p.color) },
     text: perf.map(p => fmt(p.mae)), textposition: 'outside',
-    textfont: { size: 11, color: '#6b5d4a' }, cliponaxis: false,
+    textfont: { size: 11, color: '#6a5a44' }, cliponaxis: false,
     hovertemplate: '%{y}<br>average miss %{x:,.0f} guests · over %{customdata} days' +
                    '<extra></extra>'
   }], mergeAxes(base, {
@@ -474,7 +484,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     height: 290, bargap: 0.45,
     margin: { t: 8, r: 16, b: 40, l: narrow ? 42 : 52 },
     yaxis: { title: { text: 'Avg miss (guests)' },
-             zeroline: true, zerolinecolor: '#cfc4ab' }
+             zeroline: true, zerolinecolor: '#d3c49e' }
   }), cfg);
 
   // ---------------- Importance ----------------
@@ -556,7 +566,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
   function drawOverlay() {
     Plotly.react('overlayChart', overlayTraces(), mergeAxes(base, {
       height: 380, hovermode: 'x unified',
-      colorway: [BLUE, ORANGE, '#3a63b8', '#96761a', '#c65f7e', '#6f7d2c'],
+      colorway: [BLUE, ORANGE, '#0e8f7a', '#7a4bbf', '#d24e1e'],
       yaxis: { title: { text: 'Scaled 0–1' }, range: [-0.05, 1.08] },
       legend: { orientation: 'h', y: -0.22 }
     }), cfg);
@@ -608,17 +618,17 @@ const DATA = /*__DASHBOARD_DATA__*/null;
       hovertemplate: '%{text}<br>' + flabel(k) + ': %{x}<br>miss: ' +
                      '%{y:+,.0f} guests<extra></extra>',
       marker: { color: BLUE, size: 9, opacity: 0.85,
-                line: { color: '#fffdf7', width: 1.5 } }
+                line: { color: '#fffdf6', width: 1.5 } }
     }], mergeAxes(base, {
       height: 320,
       margin: { t: 8, r: 16, b: 44, l: narrow ? 48 : 58 },
       xaxis: { title: { text: flabel(k) } },
       yaxis: { title: { text: 'Miss (guests, + = ran busier)' },
-               zeroline: true, zerolinecolor: '#cfc4ab' },
+               zeroline: true, zerolinecolor: '#d3c49e' },
       annotations: [{ x: 0.02, y: 0.98, xref: 'paper', yref: 'paper',
                       showarrow: false, xanchor: 'left',
                       text: 'correlation r = ' + (isNaN(r) ? '–' : r.toFixed(2)),
-                      font: { size: 12, color: '#776b55' } }]
+                      font: { size: 12, color: '#75674e' } }]
     }), cfg);
   }
   selEl.addEventListener('change', drawScatter);
