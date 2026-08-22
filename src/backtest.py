@@ -185,6 +185,30 @@ def run(df, name, kind, cols, params=None, log_target=True, wd_corr=False,
     return r
 
 
+def run_equal_blend(df, name, kinds, cols):
+    """Equal-weight average of several learners' predictions per fold.
+    'lgbm+ridge+rf' with the week-safe features is the SHIPPED model
+    (BlendModel in build_dashboard.py) - this entry makes its selection
+    reproducible from this sweep."""
+    y = df["Entries"].values.astype(float)
+    n = len(df)
+    maes, biases = [], []
+    for f in range(N_FOLDS):
+        te_end = n - HOLDOUT - f * FOLD
+        te = np.arange(te_end - FOLD, te_end)
+        tr = np.arange(te_end - FOLD)
+        preds = [fit_predict(k, df, cols, tr, te) for k in kinds]
+        e = y[te] - np.mean(preds, axis=0)
+        maes.append(np.abs(e).mean())
+        biases.append(e.mean())
+    r = {"name": name, "mae": float(np.mean(maes)),
+         "folds": [round(float(m), 1) for m in maes],
+         "bias": float(np.mean(biases))}
+    print(f"{r['name']:38s} MAE {r['mae']:7.1f}  folds {r['folds']}"
+          f"  bias {r['bias']:+7.1f}", flush=True)
+    return r
+
+
 def main():
     tmp = Path(tempfile.mkdtemp(prefix="synth_exp_"))
     files = pl.synth_kaggle_files(tmp)
@@ -231,6 +255,8 @@ def main():
                  blend=("ridge", 0.3)))
     R.append(run(df, "histgb blend ridge .3", "histgb", week1,
                  blend=("ridge", 0.3)))
+    R.append(run_equal_blend(df, "lgbm+ridge+rf equal (SHIPPED)",
+                             ["lgbm", "ridge", "rf"], week1))
 
     best = min(R, key=lambda r: r["mae"])
     print(f"\nBEST: {best['name']}  MAE {best['mae']:.1f} "

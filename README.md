@@ -19,6 +19,14 @@ over-coverage. (The original XGBoost analysis lives on in the notebook.)
 
 **Live dashboard:** deploys to Vercel as a static page — `public/index.html` (a synthetic demo build ships with the repo so the deployment works before any downloads).
 
+> **Taking this to production?** There is a full production deployment guide
+> in [`docs/production-guide/`](docs/production-guide/README.md): your own
+> ticketing/admission data, PostgreSQL or DuckDB in the middle, the same
+> public APIs (with US and EU source options), and Power BI reporting on top —
+> including the warehouse DDL, the job DAG, the leakage-firewall feature
+> contract, the DAX for every dashboard panel, monitoring thresholds, and a
+> phased rollout plan with the labor-savings business case.
+
 ## Data sources (all free, no keys)
 | Source | What it provides |
 |---|---|
