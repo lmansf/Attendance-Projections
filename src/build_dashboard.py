@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,63 @@ WEEK_AHEAD_DROP = ["Entries_Lag_1", "Entries_Roll_Mean_7", "Entries_Roll_Std_7",
                    "Entries_WoW_Diff", "Wait_Mean_Lag_1"]
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Column -> reader-facing label. Everything shown in the dashboard goes
+# through feature_label(); raw column names never reach the page.
+FEATURE_LABELS = {
+    "Entries_Lag_1": "Attendance yesterday",
+    "Entries_Lag_7": "Attendance 7 days prior",
+    "Entries_Lag_14": "Attendance 14 days prior",
+    "Entries_Lag_364": "Attendance 1 year prior",
+    "Entries_Roll_Mean_7": "Attendance, 7-day average",
+    "Entries_Roll_Std_7": "Attendance, 7-day volatility",
+    "Entries_WoW_Diff": "Attendance, week-over-week change",
+    "Entries_SameDOW_Mean4": "Same-weekday average (last 4)",
+    "Wait_Mean_Lag_1": "Ride waits yesterday",
+    "Wait_Mean_Lag_7": "Ride waits 7 days prior",
+    "Open_Hours": "Park hours (open to close)",
+    "DayOfWeek": "Day of week",
+    "Is_Weekend": "Weekend",
+    "Month": "Month",
+    "DayOfMonth": "Day of month",
+    "Is_Holiday": "Public holiday",
+    "DayOfYear_Sin": "Time of year (annual cycle A)",
+    "DayOfYear_Cos": "Time of year (annual cycle B)",
+    "Days_To_Holiday": "Days until next holiday",
+    "Days_Since_Holiday": "Days since last holiday",
+    "Is_Bridge_Day": "Bridge day (long weekend)",
+    "Is_Easter_Week": "Easter week",
+    "Is_Xmas_Period": "Christmas period",
+    "Is_Summer_Peak": "Summer peak (Jul-Aug)",
+    "Avg_Temp_C": "Avg temperature",
+    "Max_Temp_C": "Max temperature",
+    "Min_Temp_C": "Min temperature",
+    "Avg_Humidity_pct": "Avg humidity",
+    "Total_Rain_mm": "Rainfall",
+    "Avg_Wind_ms": "Avg wind",
+    "Avg_Clouds_pct": "Cloud cover",
+    "Arr_Week_Momentum": "Arrivals momentum (next vs last week)",
+    "Dep_Week_Momentum": "Departures momentum (next vs last week)",
+    "Arr_Curr_vs_Trail": "Arrivals, this week vs trailing month",
+    "Dep_Curr_vs_Trail": "Departures, this week vs trailing month",
+}
+_FLIGHT_WINDOWS = {
+    ("Last", "Day"): "day before", ("Curr", "Day"): "same day",
+    ("Next", "Day"): "day after", ("Last", "Week"): "prior 7 days",
+    ("Curr", "Week"): "calendar week", ("Next", "Week"): "next 7 days",
+    ("Last", "Month"): "prior 30 days", ("Curr", "Month"): "calendar month",
+    ("Next", "Month"): "next 30 days",
+}
+
+
+def feature_label(col: str) -> str:
+    if col in FEATURE_LABELS:
+        return FEATURE_LABELS[col]
+    m = re.fullmatch(r"(Arr|Dep)_(Last|Curr|Next)_(Day|Week|Month)", col)
+    if m:
+        kind = "Flight arrivals" if m.group(1) == "Arr" else "Flight departures"
+        return f"{kind}, {_FLIGHT_WINDOWS[(m.group(2), m.group(3))]}"
+    return col.replace("_", " ")
 
 
 def _fit(X, y_raw):
@@ -190,8 +248,9 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
     perm_model = _fit(df[week_cols].iloc[tr_i], y[tr_i])
     deltas = permutation_deltas(perm_model, df[week_cols].iloc[va_i],
                                 y[va_i], week_cols)
-    importance = sorted(({"feature": f, "delta": d} for f, d in deltas.items()),
-                        key=lambda d: d["delta"], reverse=True)[:15]
+    importance = sorted(({"feature": f, "label": feature_label(f), "delta": d}
+                         for f, d in deltas.items()),
+                        key=lambda d: d["delta"], reverse=True)[:12]
 
     # ---- empirical 80% band from validation residual ratios ----
     ratio_va = (y[va_i]
@@ -206,15 +265,17 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
 
     dow = df["Date"].iloc[hold].dt.dayofweek.values
     labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    weekday = {"labels": [], "mean_error": []}
+    weekday = {"labels": [], "mean_error": [], "n": []}
     for d in range(7):
         msk = dow == d
         if msk.any():
             weekday["labels"].append(labels[d])
             weekday["mean_error"].append(float(err_week[msk].mean()))
+            weekday["n"].append(int(msk.sum()))
 
     features_payload = {
         c: {"group": pl.feature_group(c),
+            "label": feature_label(c),
             "in_week_model": c in week_cols,
             "values": df[c].iloc[hold].tolist()}
         for c in all_cols if c != "Date_Num"
@@ -232,7 +293,8 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
             "worst": {"date": hold_dates[worst_i],
                       "err": float(err_week[worst_i])},
             "avg_attendance": float(actual.mean()),
-            "week_ahead_dropped": [c for c in WEEK_AHEAD_DROP if c in all_cols],
+            "week_ahead_dropped": [feature_label(c) for c in WEEK_AHEAD_DROP
+                                   if c in all_cols],
             "baselines": baselines,
             "best_baseline": best_baseline,
             "tolerance": {"thresholds": tol_thresholds, "model": tol_model,
