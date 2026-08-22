@@ -222,7 +222,10 @@ def main():
     new_feats = ["Entries_Lag_21", "Entries_Lag_28", "Entries_WkSafe_Mean7",
                  "Entries_WkSafe_Std7", "Entries_Lag7_minus_14",
                  "DayOfYear_Sin2", "DayOfYear_Cos2"]
-    week1 = week0 + new_feats
+    # pipeline.py ships the week-safe features since the blend landed, so they
+    # are already in week0; the dedupe keeps this script runnable on both the
+    # old and the current pipeline.
+    week1 = week0 + [c for c in new_feats if c not in week0]
 
     print(f"rows={len(df)}  folds={N_FOLDS}x{FOLD}d  (30d holdout untouched)")
     print(f"irreducible-noise note: synth noise ~U(500,4000) -> MAE floor ~875\n")
