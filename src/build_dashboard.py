@@ -51,26 +51,26 @@ ROOT = Path(__file__).resolve().parents[1]
 # through feature_label(); raw column names never reach the page.
 FEATURE_LABELS = {
     "Entries_Lag_1": "Attendance yesterday",
-    "Entries_Lag_7": "Attendance 7 days prior",
-    "Entries_Lag_14": "Attendance 14 days prior",
-    "Entries_Lag_364": "Attendance 1 year prior",
-    "Entries_Roll_Mean_7": "Attendance, 7-day average",
-    "Entries_Roll_Std_7": "Attendance, 7-day volatility",
-    "Entries_WoW_Diff": "Attendance, week-over-week change",
-    "Entries_SameDOW_Mean4": "Same-weekday average (last 4)",
+    "Entries_Lag_7": "Attendance 7 days ago",
+    "Entries_Lag_14": "Attendance 14 days ago",
+    "Entries_Lag_364": "Attendance last year",
+    "Entries_Roll_Mean_7": "7-day avg attendance",
+    "Entries_Roll_Std_7": "7-day volatility",
+    "Entries_WoW_Diff": "Week-over-week change",
+    "Entries_SameDOW_Mean4": "Same-weekday avg (4 wks)",
     "Wait_Mean_Lag_1": "Ride waits yesterday",
-    "Wait_Mean_Lag_7": "Ride waits 7 days prior",
-    "Open_Hours": "Park hours (open to close)",
+    "Wait_Mean_Lag_7": "Ride waits 7 days ago",
+    "Open_Hours": "Park hours",
     "DayOfWeek": "Day of week",
     "Is_Weekend": "Weekend",
     "Month": "Month",
     "DayOfMonth": "Day of month",
     "Is_Holiday": "Public holiday",
-    "DayOfYear_Sin": "Time of year (annual cycle A)",
-    "DayOfYear_Cos": "Time of year (annual cycle B)",
-    "Days_To_Holiday": "Days until next holiday",
-    "Days_Since_Holiday": "Days since last holiday",
-    "Is_Bridge_Day": "Bridge day (long weekend)",
+    "DayOfYear_Sin": "Time of year (cycle A)",
+    "DayOfYear_Cos": "Time of year (cycle B)",
+    "Days_To_Holiday": "Days to next holiday",
+    "Days_Since_Holiday": "Days since holiday",
+    "Is_Bridge_Day": "Bridge day",
     "Is_Easter_Week": "Easter week",
     "Is_Xmas_Period": "Christmas period",
     "Is_Summer_Peak": "Summer peak (Jul-Aug)",
@@ -81,10 +81,10 @@ FEATURE_LABELS = {
     "Total_Rain_mm": "Rainfall",
     "Avg_Wind_ms": "Avg wind",
     "Avg_Clouds_pct": "Cloud cover",
-    "Arr_Week_Momentum": "Arrivals momentum (next vs last week)",
-    "Dep_Week_Momentum": "Departures momentum (next vs last week)",
-    "Arr_Curr_vs_Trail": "Arrivals, this week vs trailing month",
-    "Dep_Curr_vs_Trail": "Departures, this week vs trailing month",
+    "Arr_Week_Momentum": "Arrivals momentum",
+    "Dep_Week_Momentum": "Departures momentum",
+    "Arr_Curr_vs_Trail": "Arrivals vs trailing avg",
+    "Dep_Curr_vs_Trail": "Departures vs trailing avg",
 }
 _FLIGHT_WINDOWS = {
     ("Last", "Day"): "day before", ("Curr", "Day"): "same day",
@@ -101,7 +101,7 @@ def feature_label(col: str) -> str:
     m = re.fullmatch(r"(Arr|Dep)_(Last|Curr|Next)_(Day|Week|Month)", col)
     if m:
         kind = "Flight arrivals" if m.group(1) == "Arr" else "Flight departures"
-        return f"{kind}, {_FLIGHT_WINDOWS[(m.group(2), m.group(3))]}"
+        return f"{kind} ({_FLIGHT_WINDOWS[(m.group(2), m.group(3))]})"
     return col.replace("_", " ")
 
 
@@ -154,7 +154,7 @@ def _clean(obj):
 
 
 def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
-          context_days: int = 45) -> Path:
+          context_days: int = 30) -> Path:
     cache_dir = ROOT / "flight_cache"
     if synthetic:
         tmp = Path(tempfile.mkdtemp(prefix="synth_kaggle_"))

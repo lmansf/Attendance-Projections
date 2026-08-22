@@ -3,75 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Daily attendance forecast for theme-park staffing and ad-spend decisions — week-ahead model accuracy, labor cost of forecast error, and drivers.">
 <title>Attendance Forecast — Staffing &amp; Ad-Spend Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎢</text></svg>">
+<script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
 <style>
-  :root { --ink:#1b2733; --sub:#5b6b7b; --blue:#1f4e79; --orange:#e2711d;
-          --green:#1c6b34; --bg:#f4f6f9; --card:#ffffff; --line:#e3e8ef; }
+  :root { --ink:#1b2733; --sub:#5b6b7b; --muted:#8a97a5;
+          --blue:#2a78d6; --blue-text:#1c5cab;
+          --orange:#eb6834; --orange-text:#a3560b;
+          --green:#1c6b34;
+          --bg:#f4f6f9; --card:#ffffff; --line:#e3e8ef; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
          Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
   .wrap { max-width:1200px; margin:0 auto; padding:24px 20px 48px; }
-  header h1 { margin:0 0 4px; font-size:1.5rem; }
+  header h1 { margin:0 0 4px; font-size:1.4rem; }
   #subtitle { color:var(--sub); font-size:.9rem; }
   .badge { display:inline-block; margin-left:10px; padding:3px 10px;
-           border-radius:999px; font-size:.75rem; font-weight:600;
+           border-radius:999px; font-size:.72rem; font-weight:600;
            vertical-align:middle; }
   .badge.real { background:#e4f2e8; color:#1c6b34; }
   .badge.demo { background:#fdeedd; color:#a3560b; }
   .goal { background:#eef3f9; border-left:4px solid var(--blue); border-radius:8px;
-          padding:12px 16px; margin:16px 0 6px; font-size:.95rem; }
-  .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+          padding:12px 16px; margin:16px 0 6px; font-size:.95rem; line-height:1.45; }
+  .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
              gap:12px; margin:16px 0; }
   .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px;
          padding:14px 16px; }
   .kpi-v { font-size:1.3rem; font-weight:650; }
-  .kpi-s { font-size:.85rem; color:var(--sub); }
-  .kpi-l { color:var(--sub); font-size:.75rem; margin-top:3px;
-           text-transform:uppercase; letter-spacing:.04em; }
+  .kpi-s { font-size:.85rem; color:var(--sub); margin-top:1px; }
+  .kpi-l { color:var(--muted); font-size:.72rem; margin-top:5px;
+           text-transform:uppercase; letter-spacing:.05em; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
           padding:18px 20px; margin:18px 0; }
-  .card h2 { margin:0 0 6px; font-size:1.05rem; }
-  .hint { color:var(--sub); font-size:.85rem; margin:0 0 10px; }
+  .card h2 { margin:0 0 6px; font-size:1.02rem; }
+  .hint { color:var(--sub); font-size:.85rem; margin:0 0 12px; line-height:1.45; }
+  .hint .k-busy { color:var(--blue-text); font-weight:600; }
+  .hint .k-quiet { color:var(--orange-text); font-weight:600; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
   @media (max-width: 900px) { .grid2 { grid-template-columns:1fr; } }
-  .inputs { display:flex; flex-wrap:wrap; gap:14px; margin:6px 0 12px;
-            font-size:.85rem; color:var(--sub); }
-  .inputs label { display:flex; align-items:center; gap:6px; }
-  .inputs input { width:80px; font:inherit; padding:4px 6px;
+  .grid2 .card { margin:0; }
+  section.grid2 { margin:18px 0; }
+
+  /* Labor budget panel */
+  .assume { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px;
+            background:#f7f9fc; border:1px solid var(--line); border-radius:8px;
+            padding:10px 14px; margin:0 0 14px; font-size:.85rem; }
+  .assume .a-title { font-weight:650; color:var(--sub); font-size:.75rem;
+                     text-transform:uppercase; letter-spacing:.05em; }
+  .assume label { display:flex; align-items:center; gap:8px; color:var(--ink); }
+  .assume input { width:70px; font:inherit; padding:4px 8px;
                   border:1px solid var(--line); border-radius:6px; }
+  .assume .a-note { color:var(--muted); font-size:.78rem; flex-basis:100%; }
+  .labor-grid { display:grid; grid-template-columns:300px 1fr; gap:18px;
+                align-items:start; }
+  @media (max-width: 900px) { .labor-grid { grid-template-columns:1fr; } }
+  .labor-grid .statgrid { grid-template-columns:1fr; }
+
   .statgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .stat { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
-  .stat b { font-size:1.05rem; }
-  .stat .l { color:var(--sub); font-size:.78rem; text-transform:uppercase;
-             letter-spacing:.03em; margin-top:2px; }
-  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .stat b { font-size:1.02rem; }
+  .stat .l { color:var(--sub); font-size:.78rem; margin-top:2px; line-height:1.35; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
   .chip { padding:3px 9px; border-radius:999px; font-size:.78rem;
-          border:1px solid var(--line); }
+          border:1px solid var(--line); font-variant-numeric:tabular-nums; }
   .chip.hit { background:#e4f2e8; color:var(--green); border-color:#bfe0c9; }
   .chip.miss { background:#fdeedd; color:#a3560b; border-color:#f3d6b3; }
   .chip.fa { background:#eef1f5; color:var(--sub); }
-  .fgroup { margin:6px 0; }
-  .gname { display:inline-block; min-width:120px; font-size:.8rem; font-weight:650;
-           color:var(--sub); text-transform:uppercase; letter-spacing:.04em; }
+
+  .fgroup { margin:6px 0; display:flex; align-items:baseline; gap:6px; }
+  .gname { flex:0 0 110px; font-size:.75rem; font-weight:650;
+           color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .fpills { flex:1; }
   .pill { display:inline-block; margin:2px 4px 2px 0; padding:3px 9px;
-          border:1px solid var(--line); border-radius:999px; font-size:.8rem;
-          cursor:pointer; user-select:none; background:#fafbfc; }
+          border:1px solid var(--line); border-radius:999px; font-size:.78rem;
+          cursor:pointer; user-select:none; background:#fafbfc; color:var(--sub); }
   .pill:has(input:checked) { background:#e8eef7; border-color:var(--blue);
-                             color:var(--blue); font-weight:600; }
+                             color:var(--blue-text); font-weight:600; }
   .pill input { margin-right:5px; vertical-align:-1px; }
   select { font:inherit; padding:5px 8px; border:1px solid var(--line);
-           border-radius:8px; background:#fff; margin-bottom:8px; }
-  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+           border-radius:8px; background:#fff; margin-bottom:8px; max-width:100%; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem;
+          font-variant-numeric:tabular-nums; }
   th, td { text-align:right; padding:6px 8px; border-bottom:1px solid var(--line); }
   th:first-child, td:first-child { text-align:left; }
-  th { color:var(--sub); font-weight:600; }
-  td.pos { color:var(--blue); } td.neg { color:var(--orange); }
+  th { color:var(--sub); font-weight:600; background:var(--card);
+       position:sticky; top:0; }
+  td.pos { color:var(--blue-text); } td.neg { color:var(--orange-text); }
   #tableWrap { max-height:360px; overflow-y:auto; }
+  @media (max-width: 520px) {
+    #tableWrap th:nth-child(5), #tableWrap td:nth-child(5) { display:none; }
+  }
   details { margin:18px 0; }
   details summary { cursor:pointer; font-weight:600; color:var(--sub);
-                    font-size:.95rem; }
-  footer { color:var(--sub); font-size:.8rem; margin-top:26px; line-height:1.5; }
+                    font-size:.95rem; padding:4px 0; }
+  footer { color:var(--sub); font-size:.8rem; margin-top:26px; line-height:1.55; }
+  footer p { margin:6px 0; }
 </style>
 </head>
 <body>
@@ -81,92 +108,110 @@
     <div id="subtitle"></div>
   </header>
 
-  <div class="goal"><b>Goal:</b> predict daily attendance far enough ahead to set
-    labor schedules and time ad spend. The <b>week-ahead</b> model uses only
-    information available 7+ days out (when schedules lock and media is bought);
-    day-ahead is the fine-tuning ceiling. Every panel below measures that ability
-    or explains its failures — nothing else.</div>
+  <div class="goal"><b>Goal:</b> forecast daily attendance <b>a week ahead</b> —
+    far enough out to set staff schedules and buy ads. The week-ahead model only
+    sees data available 7+ days before each day; the day-ahead model (shown as a
+    reference) has fresh data and marks the ceiling. Everything below either
+    measures that forecast or prices its misses.</div>
 
   <section id="kpis" class="kpi-row"></section>
 
   <section class="card">
     <h2>Can we set next week's schedule from this forecast?</h2>
-    <p class="hint">Model trained only on days before the dotted line; the last 30
-      operating days are a true out-of-sample forecast. Bars: signed week-ahead
-      error (actual &minus; predicted) — blue above zero = busier than planned
-      (understaffed), orange below = quieter than planned (overstaffed).</p>
+    <p class="hint">The model trains only on days before the shaded window — the
+      last 30 operating days are a true out-of-sample forecast. Plan to the shaded
+      80% range, not the line: on a typical 10-day stretch, 8 land inside it.</p>
     <div id="mainChart"></div>
   </section>
 
   <section class="grid2">
     <div class="card">
-      <h2>Is it better than the rule of thumb?</h2>
-      <p class="hint">MAE vs the planner heuristics a park would use without a
-        model. Baselines roll forward with realized actuals, exactly as a
-        scheduling spreadsheet would.</p>
+      <h2>Is it better than the planner's rule of thumb?</h2>
+      <p class="hint">Average daily miss vs the shortcuts a park would use without
+        a model. Each rule rolls forward with realized actuals, exactly as a
+        scheduling spreadsheet would; hover for the days each covers.</p>
       <div id="baselineChart"></div>
     </div>
     <div class="card">
       <h2>How often is it close enough?</h2>
       <p class="hint">Share of forecast days landing within each tolerance of
-        actual — judge it at the tolerance your staffing plan can absorb.</p>
+        actual attendance — judge it at the tolerance your staffing plan can
+        absorb.</p>
       <div id="toleranceChart"></div>
-      <div class="hint" id="bandNote"></div>
+      <div class="hint" id="bandNote" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Labor budget — what forecast misses cost</h2>
+    <p class="hint">You schedule staff to the forecast. A day that runs
+      <span class="k-quiet">quieter than planned</span> wastes paid hours; a day
+      that runs <span class="k-busy">busier than planned</span> leaves shifts
+      short. Two assumptions convert guest misses into labor — set them to your
+      operation and the whole panel rescales.</p>
+    <div class="assume">
+      <span class="a-title">Your assumptions</span>
+      <label>Guests served per staff-hour
+        <input type="number" id="gph" value="40" min="1"></label>
+      <label>Loaded cost per staff-hour ($)
+        <input type="number" id="rate" value="25" min="0"></label>
+      <span class="a-note">These are operating ratios, not model outputs — every
+        number and bar below is guest-miss &divide; guests-per-staff-hour, priced
+        at your loaded rate.</span>
+    </div>
+    <div class="labor-grid">
+      <div id="staffStats" class="statgrid"></div>
+      <div id="laborChart"></div>
     </div>
   </section>
 
   <section class="grid2">
     <div class="card">
-      <h2>Staffing: what forecast error costs</h2>
-      <p class="hint">Error translated into staff-hours and dollars. The ratios are
-        <b>your assumptions, not model outputs</b> — set them to your operation.</p>
-      <div class="inputs">
-        <label>Guests per staff-hour <input type="number" id="gph" value="40" min="1"></label>
-        <label>Loaded $/staff-hour <input type="number" id="rate" value="25" min="0"></label>
-      </div>
-      <div id="staffStats" class="statgrid"></div>
-    </div>
-    <div class="card">
-      <h2>Marketing: were soft days visible a week out?</h2>
-      <p class="hint">A soft day is a bottom-quartile attendance day — the ones worth
-        stimulating with promotions or ads, if flagged early enough to act.</p>
+      <h2>Marketing — could soft days be seen a week out?</h2>
+      <p class="hint">A soft day is a bottom-quartile attendance day — worth
+        stimulating with a promotion or ad buy, but only if it's flagged early
+        enough to act. Chips show every soft-day call, in order.</p>
       <div id="softStats" class="statgrid"></div>
       <div id="softChips" class="chips"></div>
     </div>
+    <div class="card">
+      <h2>Does it miss the same weekday twice?</h2>
+      <p class="hint">Average signed miss by weekday over the forecast window
+        (small sample — hover for each weekday's day count). A recurring
+        weekday miss becomes a recurring roster error: correct it in the
+        schedule template before it repeats.</p>
+      <div id="weekdayChart"></div>
+    </div>
   </section>
 
   <section class="grid2">
     <div class="card">
-      <h2>Systematic bias by weekday</h2>
-      <p class="hint">A recurring weekday miss becomes a recurring roster error —
-        correct these before they hit the schedule template.</p>
-      <div id="weekdayChart"></div>
+      <h2>What the week-ahead forecast runs on</h2>
+      <p class="hint">How much the average miss grows when each input is
+        scrambled (permutation importance, training-side validation). This is
+        what justifies the flight-schedule and calendar data — and hints at what
+        real booking data could add.</p>
+      <div id="importanceChart"></div>
     </div>
     <div class="card">
-      <h2>What the week-ahead forecast runs on</h2>
-      <p class="hint">Permutation &Delta;MAE on a training-side validation slice.
-        These justify the data investments (flight schedules, operating calendar) —
-        and show what real booking data could add.</p>
-      <div id="importanceChart"></div>
+      <h2>Check any driver against the misses</h2>
+      <p class="hint">Does the model miss systematically when a driver is high
+        or low? A visible slope means signal the model isn't using yet.</p>
+      <select id="scatterSelect" aria-label="driver to plot"></select>
+      <div id="scatterChart"></div>
     </div>
   </section>
 
-  <details open>
-    <summary>Diagnostics — why a day was missed (before overriding the schedule)</summary>
+  <details>
+    <summary>Diagnostics — overlay any drivers on the forecast (for
+      investigating a specific missed day)</summary>
     <section class="card">
       <h2>Feature overlay explorer</h2>
-      <p class="hint">Draw any drivers alongside actual and the week-ahead forecast,
-        min&ndash;max normalized; hover shows raw values. Features marked &dagger; need
+      <p class="hint">Draw drivers alongside actual and forecast, scaled 0&ndash;1
+        so shapes compare; hover shows raw values. Features marked &dagger; need
         fresher-than-7-day data, so only the day-ahead model can use them.</p>
       <div id="featureFilters"></div>
       <div id="overlayChart"></div>
-    </section>
-    <section class="card">
-      <h2>Error vs feature</h2>
-      <p class="hint">Does the week-ahead model miss systematically when a driver is
-        high or low?</p>
-      <select id="scatterSelect"></select>
-      <div id="scatterChart"></div>
     </section>
   </details>
 
@@ -179,7 +224,7 @@
 </div>
 
 <script>
-const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "generated": "2026-08-22 10:07 UTC", "window_start": "2022-07-02", "window_end": "2022-07-31", "n_train": 879, "week": {"mae": 964.176, "wape": 0.1, "bias": -38.051}, "day": {"mae": 1014.834, "wape": 0.105, "bias": -99.42}, "soft": {"k": 8, "hits": 3, "false_alarms": 5, "actual_idx": [5, 9, 12, 13, 17, 18, 24, 26], "pred_idx": [16, 17, 19, 20, 24, 25, 26, 27]}, "worst": {"date": "2022-07-26", "err": -1828.539}, "avg_attendance": 9629.067, "week_ahead_dropped": ["Entries_Lag_1", "Entries_Roll_Mean_7", "Entries_Roll_Std_7", "Entries_WoW_Diff", "Wait_Mean_Lag_1"], "baselines": [{"name": "Same weekday last week", "n": 30, "mae": 1333.933, "model_mae_same_days": 964.176}, {"name": "Same weekday last year", "n": 30, "mae": 1438.667, "model_mae_same_days": 964.176}, {"name": "Avg of last 4 same weekdays", "n": 30, "mae": 1465.975, "model_mae_same_days": 964.176}], "best_baseline": {"name": "Same weekday last week", "n": 30, "mae": 1333.933, "model_mae_same_days": 964.176, "skill": 0.277}, "tolerance": {"thresholds": [5, 10, 15, 20], "model": [0.3, 0.567, 0.667, 0.9], "baseline": [0.2, 0.367, 0.6, 0.7], "baseline_name": "Same weekday last week", "baseline_n": 30}, "band": {"coverage": 24, "q_lo": 0.823, "q_hi": 1.173}}, "context": {"dates": ["2022-05-18", "2022-05-19", "2022-05-20", "2022-05-21", "2022-05-22", "2022-05-23", "2022-05-24", "2022-05-25", "2022-05-26", "2022-05-27", "2022-05-28", "2022-05-29", "2022-05-30", "2022-05-31", "2022-06-01", "2022-06-02", "2022-06-03", "2022-06-04", "2022-06-05", "2022-06-06", "2022-06-07", "2022-06-08", "2022-06-09", "2022-06-10", "2022-06-11", "2022-06-12", "2022-06-13", "2022-06-14", "2022-06-15", "2022-06-16", "2022-06-17", "2022-06-18", "2022-06-19", "2022-06-20", "2022-06-21", "2022-06-22", "2022-06-23", "2022-06-24", "2022-06-25", "2022-06-26", "2022-06-27", "2022-06-28", "2022-06-29", "2022-06-30", "2022-07-01"], "actual": [12833, 10302, 12080, 16477, 17118, 11272, 12723, 11640, 10621, 11524, 15139, 16002, 10582, 11073, 10567, 11280, 12058, 16169, 14987, 10976, 10304, 10205, 11286, 11742, 13818, 13972, 9199, 12239, 11147, 9203, 11236, 13613, 13490, 10117, 10573, 10591, 8343, 10757, 13317, 15014, 10000, 11192, 8740, 10114, 8948]}, "holdout": {"dates": ["2022-07-02", "2022-07-03", "2022-07-04", "2022-07-05", "2022-07-06", "2022-07-07", "2022-07-08", "2022-07-09", "2022-07-10", "2022-07-11", "2022-07-12", "2022-07-13", "2022-07-14", "2022-07-15", "2022-07-16", "2022-07-17", "2022-07-18", "2022-07-19", "2022-07-20", "2022-07-21", "2022-07-22", "2022-07-23", "2022-07-24", "2022-07-25", "2022-07-26", "2022-07-27", "2022-07-28", "2022-07-29", "2022-07-30", "2022-07-31"], "actual": [14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0, 9405.0, 7332.0, 7233.0, 9984.0, 8550.0, 10349.0, 10838.0, 8401.0, 6387.0, 9636.0, 7789.0, 9383.0, 11521.0, 8822.0], "pred_week": [12740.048, 12863.224, 9293.408, 9632.833, 9100.915, 9199.962, 9291.854, 12614.152, 12174.917, 8923.246, 8671.877, 8653.846, 8625.736, 8678.603, 11629.131, 11135.68, 8502.112, 8448.825, 8892.901, 8348.128, 8436.372, 11298.958, 10908.165, 8521.994, 8215.539, 8153.015, 8137.703, 7835.424, 10539.468, 10545.497], "err_week": [1517.952, 429.776, 883.592, -85.833, 992.085, -1301.962, -1194.854, 462.848, -1018.917, -1530.246, 335.123, 1731.154, -609.736, -1100.603, 874.869, -372.68, 902.888, -1116.825, -1659.901, 1635.872, 113.628, -949.958, -70.165, -120.994, -1828.539, 1482.985, -348.703, 1547.576, 981.532, -1723.497], "pred_day": [12359.622, 13157.179, 9314.298, 9816.044, 9132.385, 9531.893, 9178.692, 12650.362, 12101.933, 9032.601, 8659.568, 8863.197, 8774.216, 8683.725, 11545.527, 11225.898, 8585.388, 8612.331, 9036.062, 8330.877, 8458.051, 11362.002, 11085.227, 8654.899, 8393.389, 8343.328, 8368.888, 7839.955, 10302.047, 10455.008], "err_day": [1898.378, 135.821, 862.702, -269.044, 960.615, -1633.893, -1081.692, 426.638, -945.933, -1639.601, 347.432, 1521.803, -758.216, -1105.725, 958.473, -462.898, 819.612, -1280.331, -1803.062, 1653.123, 91.949, -1013.002, -247.227, -253.899, -2006.389, 1292.672, -579.888, 1543.045, 1218.953, -1633.008], "band_lo": [10490.907, 10592.338, 7652.741, 7932.243, 7494.23, 7575.792, 7651.461, 10387.237, 10025.545, 7347.927, 7140.936, 7126.088, 7102.94, 7146.474, 9576.113, 9169.776, 7001.14, 6957.261, 7322.94, 6874.341, 6947.007, 9304.229, 8982.427, 7017.513, 6765.16, 6713.674, 6701.065, 6452.151, 8678.82, 8683.785], "band_hi": [14947.428, 15091.946, 10903.613, 11301.847, 10677.767, 10793.976, 10901.79, 14799.719, 14284.38, 10469.315, 10174.394, 10153.238, 10120.257, 10182.285, 13644.031, 13065.083, 9975.214, 9912.695, 10433.713, 9794.55, 9898.084, 13256.651, 12798.147, 9998.541, 9638.989, 9565.632, 9547.667, 9193.014, 12365.569, 12372.643]}, "features": {"Avg_Temp_C": {"group": "Weather", "in_week_model": true, "values": [18.03, 17.73, 16.91, 17.21, 17.28, 17.42, 17.01, 16.72, 16.01, 15.85, 15.48, 16.0, 16.19, 15.64, 15.32, 15.36, 15.34, 15.42, 14.56, 15.14, 14.75, 15.36, 14.54, 14.51, 13.57, 13.4, 13.13, 12.34, 13.22, 12.85]}, "Max_Temp_C": {"group": "Weather", "in_week_model": true, "values": [27.85, 28.82, 29.46, 26.85, 26.15, 29.49, 27.04, 26.86, 28.28, 27.94, 28.03, 26.73, 27.31, 27.42, 28.12, 27.87, 28.77, 29.6, 27.27, 27.68, 28.66, 28.83, 27.11, 27.64, 27.15, 27.05, 28.97, 26.72, 28.01, 28.14]}, "Min_Temp_C": {"group": "Weather", "in_week_model": true, "values": [9.3, 10.25, 9.92, 9.74, 9.13, 11.65, 9.04, 10.92, 8.12, 10.02, 9.74, 9.88, 9.34, 10.62, 9.66, 10.32, 11.51, 10.31, 8.98, 9.91, 10.21, 10.73, 9.93, 10.17, 10.81, 8.84, 8.62, 11.37, 9.05, 9.19]}, "Avg_Humidity_pct": {"group": "Weather", "in_week_model": true, "values": [67.29, 68.12, 70.92, 70.58, 63.58, 63.88, 68.08, 68.42, 68.21, 69.21, 64.5, 64.21, 64.25, 66.67, 67.17, 68.42, 62.71, 66.12, 64.25, 70.21, 66.21, 65.08, 64.21, 63.54, 72.08, 73.92, 69.33, 62.04, 64.33, 66.38]}, "Total_Rain_mm": {"group": "Weather", "in_week_model": true, "values": [9.72, 6.62, 1.13, 0.0, 7.09, 0.0, 14.62, 7.5, 1.61, 3.75, 4.99, 11.46, 4.83, 8.65, 22.5, 3.46, 1.1, 3.92, 2.68, 11.19, 16.78, 7.18, 11.74, 12.55, 15.34, 4.05, 5.0, 4.52, 11.56, 15.74]}, "Avg_Wind_ms": {"group": "Weather", "in_week_model": true, "values": [6.45, 5.95, 5.3, 6.31, 6.85, 5.38, 7.32, 6.0, 5.58, 6.52, 4.92, 5.11, 6.04, 4.38, 6.18, 5.74, 6.93, 6.22, 5.79, 4.91, 5.14, 7.1, 6.06, 5.88, 6.03, 5.05, 7.43, 5.32, 7.51, 5.75]}, "Avg_Clouds_pct": {"group": "Weather", "in_week_model": true, "values": [58.12, 44.54, 47.67, 48.54, 46.62, 42.17, 54.62, 52.21, 57.0, 45.46, 57.17, 55.75, 46.58, 50.67, 54.5, 41.29, 47.25, 53.04, 62.42, 57.83, 44.75, 50.83, 39.54, 48.0, 46.54, 46.62, 50.33, 47.92, 52.58, 47.38]}, "DayOfWeek": {"group": "Calendar", "in_week_model": true, "values": [5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6]}, "Is_Weekend": {"group": "Calendar", "in_week_model": true, "values": [1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1]}, "Month": {"group": "Calendar", "in_week_model": true, "values": [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7]}, "DayOfMonth": {"group": "Calendar", "in_week_model": true, "values": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]}, "Is_Holiday": {"group": "Calendar", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "DayOfYear_Sin": {"group": "Calendar", "in_week_model": true, "values": [-0.006, -0.024, -0.041, -0.058, -0.075, -0.092, -0.109, -0.127, -0.144, -0.161, -0.178, -0.194, -0.211, -0.228, -0.245, -0.261, -0.278, -0.294, -0.311, -0.327, -0.343, -0.359, -0.375, -0.391, -0.407, -0.423, -0.438, -0.454, -0.469, -0.484]}, "DayOfYear_Cos": {"group": "Calendar", "in_week_model": true, "values": [-1.0, -1.0, -0.999, -0.998, -0.997, -0.996, -0.994, -0.992, -0.99, -0.987, -0.984, -0.981, -0.977, -0.974, -0.97, -0.965, -0.961, -0.956, -0.95, -0.945, -0.939, -0.933, -0.927, -0.92, -0.913, -0.906, -0.899, -0.891, -0.883, -0.875]}, "Arr_Last_Day": {"group": "Flights", "in_week_model": true, "values": [253.0, 256.0, 258.0, 256.0, 249.0, 238.0, 242.0, 249.0, 244.0, 242.0, 253.0, 235.0, 242.0, 241.0, 246.0, 235.0, 227.0, 237.0, 229.0, 255.0, 238.0, 243.0, 250.0, 239.0, 227.0, 225.0, 245.0, 251.0, 233.0, 229.0]}, "Arr_Curr_Day": {"group": "Flights", "in_week_model": true, "values": [256.0, 258.0, 256.0, 249.0, 238.0, 242.0, 249.0, 244.0, 242.0, 253.0, 235.0, 242.0, 241.0, 246.0, 235.0, 227.0, 237.0, 229.0, 255.0, 238.0, 243.0, 250.0, 239.0, 227.0, 225.0, 245.0, 251.0, 233.0, 229.0, 240.0]}, "Arr_Next_Day": {"group": "Flights", "in_week_model": true, "values": [258.0, 256.0, 249.0, 238.0, 242.0, 249.0, 244.0, 242.0, 253.0, 235.0, 242.0, 241.0, 246.0, 235.0, 227.0, 237.0, 229.0, 255.0, 238.0, 243.0, 250.0, 239.0, 227.0, 225.0, 245.0, 251.0, 233.0, 229.0, 240.0, 238.0]}, "Arr_Last_Week": {"group": "Flights", "in_week_model": true, "values": [1791.0, 1789.0, 1784.0, 1794.0, 1776.0, 1754.0, 1752.0, 1748.0, 1736.0, 1720.0, 1717.0, 1703.0, 1707.0, 1706.0, 1703.0, 1694.0, 1679.0, 1663.0, 1657.0, 1670.0, 1667.0, 1664.0, 1679.0, 1691.0, 1681.0, 1677.0, 1667.0, 1680.0, 1670.0, 1649.0]}, "Arr_Curr_Week": {"group": "Flights", "in_week_model": true, "values": [1784.0, 1784.0, 1720.0, 1720.0, 1720.0, 1720.0, 1720.0, 1720.0, 1720.0, 1679.0, 1679.0, 1679.0, 1679.0, 1679.0, 1679.0, 1679.0, 1691.0, 1691.0, 1691.0, 1691.0, 1691.0, 1691.0, 1691.0, 1650.0, 1650.0, 1650.0, 1650.0, 1650.0, 1650.0, 1650.0]}, "Arr_Next_Week": {"group": "Flights", "in_week_model": true, "values": [1736.0, 1720.0, 1717.0, 1703.0, 1707.0, 1706.0, 1703.0, 1694.0, 1679.0, 1663.0, 1657.0, 1670.0, 1667.0, 1664.0, 1679.0, 1691.0, 1681.0, 1677.0, 1667.0, 1680.0, 1670.0, 1649.0, 1650.0, 1661.0, 1668.0, 1664.0, 1644.0, 1652.0, 1642.0, 1643.0]}, "Arr_Last_Month": {"group": "Flights", "in_week_model": true, "values": [7763.0, 7759.0, 7747.0, 7743.0, 7714.0, 7691.0, 7683.0, 7665.0, 7651.0, 7631.0, 7618.0, 7604.0, 7588.0, 7570.0, 7545.0, 7525.0, 7505.0, 7493.0, 7458.0, 7451.0, 7430.0, 7419.0, 7413.0, 7395.0, 7364.0, 7326.0, 7325.0, 7309.0, 7282.0, 7267.0]}, "Arr_Curr_Month": {"group": "Flights", "in_week_model": true, "values": [7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0]}, "Arr_Next_Month": {"group": "Flights", "in_week_model": true, "values": [7236.0, 7210.0, 7195.0, 7177.0, 7180.0, 7157.0, 7149.0, 7148.0, 7132.0, 7123.0, 7104.0, 7072.0, 7038.0, 7023.0, 7021.0, 7007.0, 6995.0, 6976.0, 6956.0, 6934.0, 6897.0, 6872.0, 6843.0, 6824.0, 6811.0, 6783.0, 6739.0, 6731.0, 6713.0, 6691.0]}, "Dep_Last_Day": {"group": "Flights", "in_week_model": true, "values": [249.0, 242.0, 262.0, 254.0, 240.0, 240.0, 240.0, 245.0, 245.0, 261.0, 238.0, 229.0, 246.0, 242.0, 250.0, 237.0, 245.0, 240.0, 230.0, 240.0, 246.0, 232.0, 237.0, 233.0, 234.0, 246.0, 247.0, 224.0, 228.0, 217.0]}, "Dep_Curr_Day": {"group": "Flights", "in_week_model": true, "values": [242.0, 262.0, 254.0, 240.0, 240.0, 240.0, 245.0, 245.0, 261.0, 238.0, 229.0, 246.0, 242.0, 250.0, 237.0, 245.0, 240.0, 230.0, 240.0, 246.0, 232.0, 237.0, 233.0, 234.0, 246.0, 247.0, 224.0, 228.0, 217.0, 248.0]}, "Dep_Next_Day": {"group": "Flights", "in_week_model": true, "values": [262.0, 254.0, 240.0, 240.0, 240.0, 245.0, 245.0, 261.0, 238.0, 229.0, 246.0, 242.0, 250.0, 237.0, 245.0, 240.0, 230.0, 240.0, 246.0, 232.0, 237.0, 233.0, 234.0, 246.0, 247.0, 224.0, 228.0, 217.0, 248.0, 225.0]}, "Dep_Last_Week": {"group": "Flights", "in_week_model": true, "values": [1739.0, 1731.0, 1745.0, 1759.0, 1749.0, 1729.0, 1727.0, 1723.0, 1726.0, 1725.0, 1709.0, 1698.0, 1704.0, 1706.0, 1711.0, 1703.0, 1687.0, 1689.0, 1690.0, 1684.0, 1688.0, 1670.0, 1670.0, 1658.0, 1652.0, 1668.0, 1675.0, 1653.0, 1649.0, 1629.0]}, "Dep_Curr_Week": {"group": "Flights", "in_week_model": true, "values": [1745.0, 1745.0, 1725.0, 1725.0, 1725.0, 1725.0, 1725.0, 1725.0, 1725.0, 1687.0, 1687.0, 1687.0, 1687.0, 1687.0, 1687.0, 1687.0, 1658.0, 1658.0, 1658.0, 1658.0, 1658.0, 1658.0, 1658.0, 1644.0, 1644.0, 1644.0, 1644.0, 1644.0, 1644.0, 1644.0]}, "Dep_Next_Week": {"group": "Flights", "in_week_model": true, "values": [1726.0, 1725.0, 1709.0, 1698.0, 1704.0, 1706.0, 1711.0, 1703.0, 1687.0, 1689.0, 1690.0, 1684.0, 1688.0, 1670.0, 1670.0, 1658.0, 1652.0, 1668.0, 1675.0, 1653.0, 1649.0, 1629.0, 1644.0, 1635.0, 1612.0, 1608.0, 1619.0, 1612.0, 1633.0, 1608.0]}, "Dep_Last_Month": {"group": "Flights", "in_week_model": true, "values": [7752.0, 7716.0, 7717.0, 7705.0, 7685.0, 7656.0, 7631.0, 7611.0, 7597.0, 7590.0, 7563.0, 7522.0, 7507.0, 7482.0, 7460.0, 7430.0, 7416.0, 7400.0, 7385.0, 7367.0, 7364.0, 7350.0, 7328.0, 7313.0, 7297.0, 7295.0, 7302.0, 7276.0, 7244.0, 7219.0]}, "Dep_Curr_Month": {"group": "Flights", "in_week_model": true, "values": [7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0]}, "Dep_Next_Month": {"group": "Flights", "in_week_model": true, "values": [7201.0, 7162.0, 7151.0, 7146.0, 7127.0, 7125.0, 7103.0, 7094.0, 7052.0, 7052.0, 7054.0, 7041.0, 7027.0, 7015.0, 6992.0, 6977.0, 6956.0, 6954.0, 6935.0, 6916.0, 6898.0, 6891.0, 6882.0, 6863.0, 6840.0, 6805.0, 6784.0, 6776.0, 6794.0, 6768.0]}, "Entries_Lag_1": {"group": "Attendance lags", "in_week_model": false, "values": [8948.0, 14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0, 9405.0, 7332.0, 7233.0, 9984.0, 8550.0, 10349.0, 10838.0, 8401.0, 6387.0, 9636.0, 7789.0, 9383.0, 11521.0]}, "Entries_Lag_7": {"group": "Attendance lags", "in_week_model": true, "values": [13317.0, 15014.0, 10000.0, 11192.0, 8740.0, 10114.0, 8948.0, 14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0, 9405.0, 7332.0, 7233.0, 9984.0, 8550.0, 10349.0, 10838.0]}, "Entries_Roll_Mean_7": {"group": "Attendance lags", "in_week_model": false, "values": [11046.429, 11180.857, 10935.0, 10960.286, 10725.286, 10918.571, 10602.0, 10480.429, 10311.714, 10006.429, 9608.714, 9531.571, 9573.286, 9590.143, 9516.0, 9434.143, 9378.0, 9665.429, 9426.143, 8975.857, 9257.0, 9395.857, 9088.0, 9098.714, 8955.286, 8820.286, 9163.571, 8850.0, 8969.0, 9136.429]}, "Days_To_Holiday": {"group": "Calendar", "in_week_model": true, "values": [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15]}, "Days_Since_Holiday": {"group": "Calendar", "in_week_model": true, "values": [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]}, "Is_Bridge_Day": {"group": "Calendar", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "Is_Easter_Week": {"group": "Calendar", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "Is_Xmas_Period": {"group": "Calendar", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "Is_Summer_Peak": {"group": "Calendar", "in_week_model": true, "values": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}, "Entries_Lag_14": {"group": "Attendance lags", "in_week_model": true, "values": [13613.0, 13490.0, 10117.0, 10573.0, 10591.0, 8343.0, 10757.0, 13317.0, 15014.0, 10000.0, 11192.0, 8740.0, 10114.0, 8948.0, 14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0]}, "Entries_Lag_364": {"group": "Attendance lags", "in_week_model": true, "values": [11580.0, 13582.0, 14101.0, 11423.0, 17992.0, 16739.0, 13995.0, 11518.0, 13324.0, 11388.0, 13706.0, 16130.0, 10509.0, 12197.0, 12082.0, 11878.0, 11898.0, 15029.0, 16072.0, 10352.0, 12858.0, 12912.0, 12647.0, 11373.0, 17050.0, 16981.0, 10776.0, 9737.0, 12401.0, 11477.0]}, "Entries_SameDOW_Mean4": {"group": "Attendance lags", "in_week_model": true, "values": [14229.25, 14365.75, 10073.0, 11077.0, 10170.75, 9736.5, 10670.75, 13751.5, 13942.25, 9873.25, 10887.75, 10142.75, 8889.5, 9759.5, 13566.25, 13238.25, 9421.75, 10079.75, 9952.25, 8592.75, 8845.0, 13289.0, 12556.5, 9243.75, 9269.5, 9112.75, 9003.0, 8293.25, 12547.0, 11512.5]}, "Entries_Roll_Std_7": {"group": "Attendance lags", "in_week_model": false, "values": [2331.157, 2504.594, 2120.652, 2108.667, 2169.331, 2017.956, 2316.89, 2437.339, 2157.028, 1783.675, 2032.349, 2045.289, 2061.561, 2046.003, 2117.291, 1962.059, 1909.496, 1700.944, 1913.54, 2018.291, 1999.28, 1894.226, 1420.86, 1435.8, 1450.179, 1655.877, 1515.068, 1543.839, 1548.956, 1770.484]}, "Entries_WoW_Diff": {"group": "Attendance lags", "in_week_model": false, "values": [-4369.0, -756.0, 3293.0, -1015.0, 807.0, -21.0, -1050.0, -6161.0, -216.0, 979.0, -2154.0, -1086.0, 2487.0, -81.0, -5499.0, 1348.0, 3370.0, 398.0, -3053.0, -783.0, 2406.0, -3954.0, -414.0, 1433.0, 1069.0, -846.0, -348.0, -761.0, -966.0, 683.0]}, "Arr_Week_Momentum": {"group": "Flights", "in_week_model": true, "values": [0.969, 0.961, 0.962, 0.949, 0.961, 0.973, 0.972, 0.969, 0.967, 0.967, 0.965, 0.981, 0.977, 0.975, 0.986, 0.998, 1.001, 1.008, 1.006, 1.006, 1.002, 0.991, 0.983, 0.982, 0.992, 0.992, 0.986, 0.983, 0.983, 0.996]}, "Dep_Week_Momentum": {"group": "Flights", "in_week_model": true, "values": [0.993, 0.997, 0.979, 0.965, 0.974, 0.987, 0.991, 0.988, 0.977, 0.979, 0.989, 0.992, 0.991, 0.979, 0.976, 0.974, 0.979, 0.988, 0.991, 0.982, 0.977, 0.975, 0.984, 0.986, 0.976, 0.964, 0.967, 0.975, 0.99, 0.987]}, "Arr_Curr_vs_Trail": {"group": "Flights", "in_week_model": true, "values": [0.985, 0.985, 0.952, 0.952, 0.956, 0.958, 0.959, 0.962, 0.963, 0.943, 0.945, 0.946, 0.948, 0.951, 0.954, 0.956, 0.966, 0.967, 0.972, 0.973, 0.975, 0.977, 0.978, 0.956, 0.96, 0.965, 0.965, 0.967, 0.971, 0.973]}, "Dep_Curr_vs_Trail": {"group": "Flights", "in_week_model": true, "values": [0.965, 0.969, 0.958, 0.959, 0.962, 0.966, 0.969, 0.971, 0.973, 0.953, 0.956, 0.961, 0.963, 0.966, 0.969, 0.973, 0.958, 0.96, 0.962, 0.965, 0.965, 0.967, 0.97, 0.963, 0.966, 0.966, 0.965, 0.968, 0.973, 0.976]}, "Open_Hours": {"group": "Operations", "in_week_model": true, "values": [13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0]}, "Wait_Mean_Lag_1": {"group": "Operations", "in_week_model": false, "values": [42.0, 67.0, 60.8, 39.8, 69.4, 28.6, 51.6, 15.4, 45.8, 39.2, 34.6, 51.8, 34.0, 64.2, 55.8, 47.8, 61.0, 38.0, 47.6, 33.6, 49.6, 27.4, 56.8, 62.6, 55.6, 42.2, 57.2, 60.6, 66.6, 54.6]}, "Wait_Mean_Lag_7": {"group": "Operations", "in_week_model": true, "values": [44.4, 50.2, 45.8, 40.0, 51.2, 50.4, 42.0, 67.0, 60.8, 39.8, 69.4, 28.6, 51.6, 15.4, 45.8, 39.2, 34.6, 51.8, 34.0, 64.2, 55.8, 47.8, 61.0, 38.0, 47.6, 33.6, 49.6, 27.4, 56.8, 62.6]}}, "importance": [{"feature": "DayOfYear_Sin", "delta": 437.458}, {"feature": "Entries_Lag_7", "delta": 421.304}, {"feature": "DayOfWeek", "delta": 184.879}, {"feature": "Avg_Temp_C", "delta": 133.369}, {"feature": "Is_Weekend", "delta": 82.164}, {"feature": "Arr_Last_Week", "delta": 59.897}, {"feature": "Entries_SameDOW_Mean4", "delta": 53.211}, {"feature": "Arr_Curr_Week", "delta": 28.727}, {"feature": "Dep_Next_Week", "delta": 16.326}, {"feature": "Dep_Next_Day", "delta": 16.084}, {"feature": "Entries_Lag_14", "delta": 14.951}, {"feature": "Arr_Last_Day", "delta": 12.221}, {"feature": "Arr_Next_Week", "delta": 6.939}, {"feature": "Dep_Last_Day", "delta": 6.21}, {"feature": "Arr_Curr_Day", "delta": 5.848}], "weekday": {"labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], "mean_error": [33.81, -674.019, 636.581, -156.132, -158.563, 577.448, -551.097]}};
+const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "generated": "2026-08-22 10:56 UTC", "window_start": "2022-07-02", "window_end": "2022-07-31", "n_train": 879, "week": {"mae": 991.549, "wape": 0.103, "bias": -98.971}, "day": {"mae": 1012.982, "wape": 0.105, "bias": -68.336}, "soft": {"k": 8, "hits": 3, "false_alarms": 5, "actual_idx": [5, 9, 12, 13, 17, 18, 24, 26], "pred_idx": [6, 9, 11, 17, 19, 25, 26, 27]}, "worst": {"date": "2022-07-26", "err": -2401.635}, "avg_attendance": 9629.067, "week_ahead_dropped": ["Attendance yesterday", "7-day avg attendance", "7-day volatility", "Week-over-week change", "Ride waits yesterday"], "baselines": [{"name": "Same weekday last week", "n": 30, "mae": 1333.933, "model_mae_same_days": 991.549}, {"name": "Same weekday last year", "n": 30, "mae": 1438.667, "model_mae_same_days": 991.549}, {"name": "Avg of last 4 same weekdays", "n": 30, "mae": 1465.975, "model_mae_same_days": 991.549}], "best_baseline": {"name": "Same weekday last week", "n": 30, "mae": 1333.933, "model_mae_same_days": 991.549, "skill": 0.257}, "tolerance": {"thresholds": [5, 10, 15, 20], "model": [0.2, 0.5, 0.767, 0.933], "baseline": [0.2, 0.367, 0.6, 0.7], "baseline_name": "Same weekday last week", "baseline_n": 30}, "band": {"coverage": 27, "q_lo": 0.829, "q_hi": 1.185}}, "context": {"dates": ["2022-06-02", "2022-06-03", "2022-06-04", "2022-06-05", "2022-06-06", "2022-06-07", "2022-06-08", "2022-06-09", "2022-06-10", "2022-06-11", "2022-06-12", "2022-06-13", "2022-06-14", "2022-06-15", "2022-06-16", "2022-06-17", "2022-06-18", "2022-06-19", "2022-06-20", "2022-06-21", "2022-06-22", "2022-06-23", "2022-06-24", "2022-06-25", "2022-06-26", "2022-06-27", "2022-06-28", "2022-06-29", "2022-06-30", "2022-07-01"], "actual": [11280, 12058, 16169, 14987, 10976, 10304, 10205, 11286, 11742, 13818, 13972, 9199, 12239, 11147, 9203, 11236, 13613, 13490, 10117, 10573, 10591, 8343, 10757, 13317, 15014, 10000, 11192, 8740, 10114, 8948]}, "holdout": {"dates": ["2022-07-02", "2022-07-03", "2022-07-04", "2022-07-05", "2022-07-06", "2022-07-07", "2022-07-08", "2022-07-09", "2022-07-10", "2022-07-11", "2022-07-12", "2022-07-13", "2022-07-14", "2022-07-15", "2022-07-16", "2022-07-17", "2022-07-18", "2022-07-19", "2022-07-20", "2022-07-21", "2022-07-22", "2022-07-23", "2022-07-24", "2022-07-25", "2022-07-26", "2022-07-27", "2022-07-28", "2022-07-29", "2022-07-30", "2022-07-31"], "actual": [14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0, 9405.0, 7332.0, 7233.0, 9984.0, 8550.0, 10349.0, 10838.0, 8401.0, 6387.0, 9636.0, 7789.0, 9383.0, 11521.0, 8822.0], "pred_week": [12862.739, 13146.788, 8783.229, 9256.525, 8907.303, 8826.622, 8726.59, 12307.52, 12010.428, 8587.324, 9224.207, 8779.745, 8960.721, 9072.656, 12086.834, 11401.36, 8787.771, 8696.769, 8898.59, 8495.99, 8975.647, 11559.237, 10512.637, 9096.952, 8788.635, 8371.447, 8202.763, 7861.209, 10552.599, 10100.295], "err_week": [1395.261, 146.212, 1393.771, 290.475, 1185.697, -928.622, -629.59, 769.48, -854.428, -1194.324, -217.207, 1605.255, -944.721, -1494.656, 417.166, -638.36, 617.229, -1364.769, -1665.59, 1488.01, -425.647, -1210.237, 325.363, -695.952, -2401.635, 1264.553, -413.763, 1521.791, 968.401, -1278.295], "pred_day": [12939.951, 13177.594, 9129.452, 9290.269, 8943.661, 9025.102, 8856.212, 11979.391, 11875.122, 8753.549, 8718.387, 8553.091, 8698.859, 8954.382, 11590.977, 11363.104, 8785.189, 8673.971, 9014.546, 8272.296, 9245.726, 11707.961, 10985.32, 8840.465, 8550.938, 8282.448, 8171.964, 7739.243, 10698.366, 10104.554], "err_day": [1318.049, 115.406, 1047.548, 256.731, 1149.339, -1127.102, -759.212, 1097.609, -719.122, -1360.549, 288.613, 1831.909, -682.859, -1376.382, 913.023, -600.104, 619.811, -1341.971, -1781.546, 1711.704, -695.726, -1358.961, -147.32, -439.465, -2163.938, 1353.552, -382.964, 1643.757, 822.634, -1282.554], "band_lo": [10661.213, 10896.646, 7279.933, 7672.222, 7382.771, 7315.899, 7232.988, 10201.023, 9954.78, 7117.558, 7645.435, 7277.045, 7427.046, 7519.823, 10018.109, 9449.957, 7283.698, 7208.271, 7375.549, 7041.857, 7439.418, 9580.813, 8713.343, 7539.961, 7284.414, 6938.63, 6798.817, 6515.722, 8746.466, 8371.576], "band_hi": [15246.806, 15583.502, 10411.172, 10972.192, 10558.242, 10462.607, 10344.035, 14588.678, 14236.521, 10178.957, 10933.883, 10407.042, 10621.561, 10754.243, 14327.089, 13514.565, 10416.556, 10308.686, 10547.914, 10070.694, 10639.254, 13701.704, 12461.119, 10783.042, 10417.579, 9923.067, 9723.118, 9318.258, 12508.488, 11972.351]}, "features": {"Avg_Temp_C": {"group": "Weather", "label": "Avg temperature", "in_week_model": true, "values": [18.03, 17.73, 16.91, 17.21, 17.28, 17.42, 17.01, 16.72, 16.01, 15.85, 15.48, 16.0, 16.19, 15.64, 15.32, 15.36, 15.34, 15.42, 14.56, 15.14, 14.75, 15.36, 14.54, 14.51, 13.57, 13.4, 13.13, 12.34, 13.22, 12.85]}, "Max_Temp_C": {"group": "Weather", "label": "Max temperature", "in_week_model": true, "values": [27.85, 28.82, 29.46, 26.85, 26.15, 29.49, 27.04, 26.86, 28.28, 27.94, 28.03, 26.73, 27.31, 27.42, 28.12, 27.87, 28.77, 29.6, 27.27, 27.68, 28.66, 28.83, 27.11, 27.64, 27.15, 27.05, 28.97, 26.72, 28.01, 28.14]}, "Min_Temp_C": {"group": "Weather", "label": "Min temperature", "in_week_model": true, "values": [9.3, 10.25, 9.92, 9.74, 9.13, 11.65, 9.04, 10.92, 8.12, 10.02, 9.74, 9.88, 9.34, 10.62, 9.66, 10.32, 11.51, 10.31, 8.98, 9.91, 10.21, 10.73, 9.93, 10.17, 10.81, 8.84, 8.62, 11.37, 9.05, 9.19]}, "Avg_Humidity_pct": {"group": "Weather", "label": "Avg humidity", "in_week_model": true, "values": [67.29, 68.12, 70.92, 70.58, 63.58, 63.88, 68.08, 68.42, 68.21, 69.21, 64.5, 64.21, 64.25, 66.67, 67.17, 68.42, 62.71, 66.12, 64.25, 70.21, 66.21, 65.08, 64.21, 63.54, 72.08, 73.92, 69.33, 62.04, 64.33, 66.38]}, "Total_Rain_mm": {"group": "Weather", "label": "Rainfall", "in_week_model": true, "values": [9.72, 6.62, 1.13, 0.0, 7.09, 0.0, 14.62, 7.5, 1.61, 3.75, 4.99, 11.46, 4.83, 8.65, 22.5, 3.46, 1.1, 3.92, 2.68, 11.19, 16.78, 7.18, 11.74, 12.55, 15.34, 4.05, 5.0, 4.52, 11.56, 15.74]}, "Avg_Wind_ms": {"group": "Weather", "label": "Avg wind", "in_week_model": true, "values": [6.45, 5.95, 5.3, 6.31, 6.85, 5.38, 7.32, 6.0, 5.58, 6.52, 4.92, 5.11, 6.04, 4.38, 6.18, 5.74, 6.93, 6.22, 5.79, 4.91, 5.14, 7.1, 6.06, 5.88, 6.03, 5.05, 7.43, 5.32, 7.51, 5.75]}, "Avg_Clouds_pct": {"group": "Weather", "label": "Cloud cover", "in_week_model": true, "values": [58.12, 44.54, 47.67, 48.54, 46.62, 42.17, 54.62, 52.21, 57.0, 45.46, 57.17, 55.75, 46.58, 50.67, 54.5, 41.29, 47.25, 53.04, 62.42, 57.83, 44.75, 50.83, 39.54, 48.0, 46.54, 46.62, 50.33, 47.92, 52.58, 47.38]}, "DayOfWeek": {"group": "Calendar", "label": "Day of week", "in_week_model": true, "values": [5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6]}, "Is_Weekend": {"group": "Calendar", "label": "Weekend", "in_week_model": true, "values": [1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1]}, "Month": {"group": "Calendar", "label": "Month", "in_week_model": true, "values": [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7]}, "DayOfMonth": {"group": "Calendar", "label": "Day of month", "in_week_model": true, "values": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]}, "Is_Holiday": {"group": "Calendar", "label": "Public holiday", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "DayOfYear_Sin": {"group": "Calendar", "label": "Time of year (cycle A)", "in_week_model": true, "values": [-0.006, -0.024, -0.041, -0.058, -0.075, -0.092, -0.109, -0.127, -0.144, -0.161, -0.178, -0.194, -0.211, -0.228, -0.245, -0.261, -0.278, -0.294, -0.311, -0.327, -0.343, -0.359, -0.375, -0.391, -0.407, -0.423, -0.438, -0.454, -0.469, -0.484]}, "DayOfYear_Cos": {"group": "Calendar", "label": "Time of year (cycle B)", "in_week_model": true, "values": [-1.0, -1.0, -0.999, -0.998, -0.997, -0.996, -0.994, -0.992, -0.99, -0.987, -0.984, -0.981, -0.977, -0.974, -0.97, -0.965, -0.961, -0.956, -0.95, -0.945, -0.939, -0.933, -0.927, -0.92, -0.913, -0.906, -0.899, -0.891, -0.883, -0.875]}, "Arr_Last_Day": {"group": "Flights", "label": "Flight arrivals (day before)", "in_week_model": true, "values": [253.0, 256.0, 258.0, 256.0, 249.0, 238.0, 242.0, 249.0, 244.0, 242.0, 253.0, 235.0, 242.0, 241.0, 246.0, 235.0, 227.0, 237.0, 229.0, 255.0, 238.0, 243.0, 250.0, 239.0, 227.0, 225.0, 245.0, 251.0, 233.0, 229.0]}, "Arr_Curr_Day": {"group": "Flights", "label": "Flight arrivals (same day)", "in_week_model": true, "values": [256.0, 258.0, 256.0, 249.0, 238.0, 242.0, 249.0, 244.0, 242.0, 253.0, 235.0, 242.0, 241.0, 246.0, 235.0, 227.0, 237.0, 229.0, 255.0, 238.0, 243.0, 250.0, 239.0, 227.0, 225.0, 245.0, 251.0, 233.0, 229.0, 240.0]}, "Arr_Next_Day": {"group": "Flights", "label": "Flight arrivals (day after)", "in_week_model": true, "values": [258.0, 256.0, 249.0, 238.0, 242.0, 249.0, 244.0, 242.0, 253.0, 235.0, 242.0, 241.0, 246.0, 235.0, 227.0, 237.0, 229.0, 255.0, 238.0, 243.0, 250.0, 239.0, 227.0, 225.0, 245.0, 251.0, 233.0, 229.0, 240.0, 238.0]}, "Arr_Last_Week": {"group": "Flights", "label": "Flight arrivals (prior 7 days)", "in_week_model": true, "values": [1791.0, 1789.0, 1784.0, 1794.0, 1776.0, 1754.0, 1752.0, 1748.0, 1736.0, 1720.0, 1717.0, 1703.0, 1707.0, 1706.0, 1703.0, 1694.0, 1679.0, 1663.0, 1657.0, 1670.0, 1667.0, 1664.0, 1679.0, 1691.0, 1681.0, 1677.0, 1667.0, 1680.0, 1670.0, 1649.0]}, "Arr_Curr_Week": {"group": "Flights", "label": "Flight arrivals (calendar week)", "in_week_model": true, "values": [1784.0, 1784.0, 1720.0, 1720.0, 1720.0, 1720.0, 1720.0, 1720.0, 1720.0, 1679.0, 1679.0, 1679.0, 1679.0, 1679.0, 1679.0, 1679.0, 1691.0, 1691.0, 1691.0, 1691.0, 1691.0, 1691.0, 1691.0, 1650.0, 1650.0, 1650.0, 1650.0, 1650.0, 1650.0, 1650.0]}, "Arr_Next_Week": {"group": "Flights", "label": "Flight arrivals (next 7 days)", "in_week_model": true, "values": [1736.0, 1720.0, 1717.0, 1703.0, 1707.0, 1706.0, 1703.0, 1694.0, 1679.0, 1663.0, 1657.0, 1670.0, 1667.0, 1664.0, 1679.0, 1691.0, 1681.0, 1677.0, 1667.0, 1680.0, 1670.0, 1649.0, 1650.0, 1661.0, 1668.0, 1664.0, 1644.0, 1652.0, 1642.0, 1643.0]}, "Arr_Last_Month": {"group": "Flights", "label": "Flight arrivals (prior 30 days)", "in_week_model": true, "values": [7763.0, 7759.0, 7747.0, 7743.0, 7714.0, 7691.0, 7683.0, 7665.0, 7651.0, 7631.0, 7618.0, 7604.0, 7588.0, 7570.0, 7545.0, 7525.0, 7505.0, 7493.0, 7458.0, 7451.0, 7430.0, 7419.0, 7413.0, 7395.0, 7364.0, 7326.0, 7325.0, 7309.0, 7282.0, 7267.0]}, "Arr_Curr_Month": {"group": "Flights", "label": "Flight arrivals (calendar month)", "in_week_model": true, "values": [7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0, 7507.0]}, "Arr_Next_Month": {"group": "Flights", "label": "Flight arrivals (next 30 days)", "in_week_model": true, "values": [7236.0, 7210.0, 7195.0, 7177.0, 7180.0, 7157.0, 7149.0, 7148.0, 7132.0, 7123.0, 7104.0, 7072.0, 7038.0, 7023.0, 7021.0, 7007.0, 6995.0, 6976.0, 6956.0, 6934.0, 6897.0, 6872.0, 6843.0, 6824.0, 6811.0, 6783.0, 6739.0, 6731.0, 6713.0, 6691.0]}, "Dep_Last_Day": {"group": "Flights", "label": "Flight departures (day before)", "in_week_model": true, "values": [249.0, 242.0, 262.0, 254.0, 240.0, 240.0, 240.0, 245.0, 245.0, 261.0, 238.0, 229.0, 246.0, 242.0, 250.0, 237.0, 245.0, 240.0, 230.0, 240.0, 246.0, 232.0, 237.0, 233.0, 234.0, 246.0, 247.0, 224.0, 228.0, 217.0]}, "Dep_Curr_Day": {"group": "Flights", "label": "Flight departures (same day)", "in_week_model": true, "values": [242.0, 262.0, 254.0, 240.0, 240.0, 240.0, 245.0, 245.0, 261.0, 238.0, 229.0, 246.0, 242.0, 250.0, 237.0, 245.0, 240.0, 230.0, 240.0, 246.0, 232.0, 237.0, 233.0, 234.0, 246.0, 247.0, 224.0, 228.0, 217.0, 248.0]}, "Dep_Next_Day": {"group": "Flights", "label": "Flight departures (day after)", "in_week_model": true, "values": [262.0, 254.0, 240.0, 240.0, 240.0, 245.0, 245.0, 261.0, 238.0, 229.0, 246.0, 242.0, 250.0, 237.0, 245.0, 240.0, 230.0, 240.0, 246.0, 232.0, 237.0, 233.0, 234.0, 246.0, 247.0, 224.0, 228.0, 217.0, 248.0, 225.0]}, "Dep_Last_Week": {"group": "Flights", "label": "Flight departures (prior 7 days)", "in_week_model": true, "values": [1739.0, 1731.0, 1745.0, 1759.0, 1749.0, 1729.0, 1727.0, 1723.0, 1726.0, 1725.0, 1709.0, 1698.0, 1704.0, 1706.0, 1711.0, 1703.0, 1687.0, 1689.0, 1690.0, 1684.0, 1688.0, 1670.0, 1670.0, 1658.0, 1652.0, 1668.0, 1675.0, 1653.0, 1649.0, 1629.0]}, "Dep_Curr_Week": {"group": "Flights", "label": "Flight departures (calendar week)", "in_week_model": true, "values": [1745.0, 1745.0, 1725.0, 1725.0, 1725.0, 1725.0, 1725.0, 1725.0, 1725.0, 1687.0, 1687.0, 1687.0, 1687.0, 1687.0, 1687.0, 1687.0, 1658.0, 1658.0, 1658.0, 1658.0, 1658.0, 1658.0, 1658.0, 1644.0, 1644.0, 1644.0, 1644.0, 1644.0, 1644.0, 1644.0]}, "Dep_Next_Week": {"group": "Flights", "label": "Flight departures (next 7 days)", "in_week_model": true, "values": [1726.0, 1725.0, 1709.0, 1698.0, 1704.0, 1706.0, 1711.0, 1703.0, 1687.0, 1689.0, 1690.0, 1684.0, 1688.0, 1670.0, 1670.0, 1658.0, 1652.0, 1668.0, 1675.0, 1653.0, 1649.0, 1629.0, 1644.0, 1635.0, 1612.0, 1608.0, 1619.0, 1612.0, 1633.0, 1608.0]}, "Dep_Last_Month": {"group": "Flights", "label": "Flight departures (prior 30 days)", "in_week_model": true, "values": [7752.0, 7716.0, 7717.0, 7705.0, 7685.0, 7656.0, 7631.0, 7611.0, 7597.0, 7590.0, 7563.0, 7522.0, 7507.0, 7482.0, 7460.0, 7430.0, 7416.0, 7400.0, 7385.0, 7367.0, 7364.0, 7350.0, 7328.0, 7313.0, 7297.0, 7295.0, 7302.0, 7276.0, 7244.0, 7219.0]}, "Dep_Curr_Month": {"group": "Flights", "label": "Flight departures (calendar month)", "in_week_model": true, "values": [7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0, 7467.0]}, "Dep_Next_Month": {"group": "Flights", "label": "Flight departures (next 30 days)", "in_week_model": true, "values": [7201.0, 7162.0, 7151.0, 7146.0, 7127.0, 7125.0, 7103.0, 7094.0, 7052.0, 7052.0, 7054.0, 7041.0, 7027.0, 7015.0, 6992.0, 6977.0, 6956.0, 6954.0, 6935.0, 6916.0, 6898.0, 6891.0, 6882.0, 6863.0, 6840.0, 6805.0, 6784.0, 6776.0, 6794.0, 6768.0]}, "Entries_Lag_1": {"group": "Attendance lags", "label": "Attendance yesterday", "in_week_model": false, "values": [8948.0, 14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0, 9405.0, 7332.0, 7233.0, 9984.0, 8550.0, 10349.0, 10838.0, 8401.0, 6387.0, 9636.0, 7789.0, 9383.0, 11521.0]}, "Entries_Lag_7": {"group": "Attendance lags", "label": "Attendance 7 days ago", "in_week_model": true, "values": [13317.0, 15014.0, 10000.0, 11192.0, 8740.0, 10114.0, 8948.0, 14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0, 9405.0, 7332.0, 7233.0, 9984.0, 8550.0, 10349.0, 10838.0]}, "Entries_Roll_Mean_7": {"group": "Attendance lags", "label": "7-day avg attendance", "in_week_model": false, "values": [11046.429, 11180.857, 10935.0, 10960.286, 10725.286, 10918.571, 10602.0, 10480.429, 10311.714, 10006.429, 9608.714, 9531.571, 9573.286, 9590.143, 9516.0, 9434.143, 9378.0, 9665.429, 9426.143, 8975.857, 9257.0, 9395.857, 9088.0, 9098.714, 8955.286, 8820.286, 9163.571, 8850.0, 8969.0, 9136.429]}, "Days_To_Holiday": {"group": "Calendar", "label": "Days to next holiday", "in_week_model": true, "values": [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15]}, "Days_Since_Holiday": {"group": "Calendar", "label": "Days since holiday", "in_week_model": true, "values": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 30, 30, 30, 30, 30, 30, 30]}, "Is_Bridge_Day": {"group": "Calendar", "label": "Bridge day", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "Is_Easter_Week": {"group": "Calendar", "label": "Easter week", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "Is_Xmas_Period": {"group": "Calendar", "label": "Christmas period", "in_week_model": true, "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, "Is_Summer_Peak": {"group": "Calendar", "label": "Summer peak (Jul-Aug)", "in_week_model": true, "values": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}, "Entries_Lag_14": {"group": "Attendance lags", "label": "Attendance 14 days ago", "in_week_model": true, "values": [13613.0, 13490.0, 10117.0, 10573.0, 10591.0, 8343.0, 10757.0, 13317.0, 15014.0, 10000.0, 11192.0, 8740.0, 10114.0, 8948.0, 14258.0, 13293.0, 10177.0, 9547.0, 10093.0, 7898.0, 8097.0, 13077.0, 11156.0, 7393.0, 9007.0, 10385.0, 8016.0, 7578.0, 12504.0, 10763.0]}, "Entries_Lag_364": {"group": "Attendance lags", "label": "Attendance last year", "in_week_model": true, "values": [11580.0, 13582.0, 14101.0, 11423.0, 17992.0, 16739.0, 13995.0, 11518.0, 13324.0, 11388.0, 13706.0, 16130.0, 10509.0, 12197.0, 12082.0, 11878.0, 11898.0, 15029.0, 16072.0, 10352.0, 12858.0, 12912.0, 12647.0, 11373.0, 17050.0, 16981.0, 10776.0, 9737.0, 12401.0, 11477.0]}, "Entries_SameDOW_Mean4": {"group": "Attendance lags", "label": "Same-weekday avg (4 wks)", "in_week_model": true, "values": [14229.25, 14365.75, 10073.0, 11077.0, 10170.75, 9736.5, 10670.75, 13751.5, 13942.25, 9873.25, 10887.75, 10142.75, 8889.5, 9759.5, 13566.25, 13238.25, 9421.75, 10079.75, 9952.25, 8592.75, 8845.0, 13289.0, 12556.5, 9243.75, 9269.5, 9112.75, 9003.0, 8293.25, 12547.0, 11512.5]}, "Entries_Roll_Std_7": {"group": "Attendance lags", "label": "7-day volatility", "in_week_model": false, "values": [2331.157, 2504.594, 2120.652, 2108.667, 2169.331, 2017.956, 2316.89, 2437.339, 2157.028, 1783.675, 2032.349, 2045.289, 2061.561, 2046.003, 2117.291, 1962.059, 1909.496, 1700.944, 1913.54, 2018.291, 1999.28, 1894.226, 1420.86, 1435.8, 1450.179, 1655.877, 1515.068, 1543.839, 1548.956, 1770.484]}, "Entries_WoW_Diff": {"group": "Attendance lags", "label": "Week-over-week change", "in_week_model": false, "values": [-4369.0, -756.0, 3293.0, -1015.0, 807.0, -21.0, -1050.0, -6161.0, -216.0, 979.0, -2154.0, -1086.0, 2487.0, -81.0, -5499.0, 1348.0, 3370.0, 398.0, -3053.0, -783.0, 2406.0, -3954.0, -414.0, 1433.0, 1069.0, -846.0, -348.0, -761.0, -966.0, 683.0]}, "Arr_Week_Momentum": {"group": "Flights", "label": "Arrivals momentum", "in_week_model": true, "values": [0.969, 0.961, 0.962, 0.949, 0.961, 0.973, 0.972, 0.969, 0.967, 0.967, 0.965, 0.981, 0.977, 0.975, 0.986, 0.998, 1.001, 1.008, 1.006, 1.006, 1.002, 0.991, 0.983, 0.982, 0.992, 0.992, 0.986, 0.983, 0.983, 0.996]}, "Dep_Week_Momentum": {"group": "Flights", "label": "Departures momentum", "in_week_model": true, "values": [0.993, 0.997, 0.979, 0.965, 0.974, 0.987, 0.991, 0.988, 0.977, 0.979, 0.989, 0.992, 0.991, 0.979, 0.976, 0.974, 0.979, 0.988, 0.991, 0.982, 0.977, 0.975, 0.984, 0.986, 0.976, 0.964, 0.967, 0.975, 0.99, 0.987]}, "Arr_Curr_vs_Trail": {"group": "Flights", "label": "Arrivals vs trailing avg", "in_week_model": true, "values": [0.985, 0.985, 0.952, 0.952, 0.956, 0.958, 0.959, 0.962, 0.963, 0.943, 0.945, 0.946, 0.948, 0.951, 0.954, 0.956, 0.966, 0.967, 0.972, 0.973, 0.975, 0.977, 0.978, 0.956, 0.96, 0.965, 0.965, 0.967, 0.971, 0.973]}, "Dep_Curr_vs_Trail": {"group": "Flights", "label": "Departures vs trailing avg", "in_week_model": true, "values": [0.965, 0.969, 0.958, 0.959, 0.962, 0.966, 0.969, 0.971, 0.973, 0.953, 0.956, 0.961, 0.963, 0.966, 0.969, 0.973, 0.958, 0.96, 0.962, 0.965, 0.965, 0.967, 0.97, 0.963, 0.966, 0.966, 0.965, 0.968, 0.973, 0.976]}, "Open_Hours": {"group": "Operations", "label": "Park hours", "in_week_model": true, "values": [13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0]}, "Wait_Mean_Lag_1": {"group": "Operations", "label": "Ride waits yesterday", "in_week_model": false, "values": [42.0, 67.0, 60.8, 39.8, 69.4, 28.6, 51.6, 15.4, 45.8, 39.2, 34.6, 51.8, 34.0, 64.2, 55.8, 47.8, 61.0, 38.0, 47.6, 33.6, 49.6, 27.4, 56.8, 62.6, 55.6, 42.2, 57.2, 60.6, 66.6, 54.6]}, "Wait_Mean_Lag_7": {"group": "Operations", "label": "Ride waits 7 days ago", "in_week_model": true, "values": [44.4, 50.2, 45.8, 40.0, 51.2, 50.4, 42.0, 67.0, 60.8, 39.8, 69.4, 28.6, 51.6, 15.4, 45.8, 39.2, 34.6, 51.8, 34.0, 64.2, 55.8, 47.8, 61.0, 38.0, 47.6, 33.6, 49.6, 27.4, 56.8, 62.6]}}, "importance": [{"feature": "Entries_Lag_7", "label": "Attendance 7 days ago", "delta": 362.058}, {"feature": "DayOfWeek", "label": "Day of week", "delta": 343.877}, {"feature": "DayOfYear_Sin", "label": "Time of year (cycle A)", "delta": 304.242}, {"feature": "Avg_Temp_C", "label": "Avg temperature", "delta": 174.045}, {"feature": "Entries_SameDOW_Mean4", "label": "Same-weekday avg (4 wks)", "delta": 71.048}, {"feature": "Arr_Last_Week", "label": "Flight arrivals (prior 7 days)", "delta": 31.063}, {"feature": "Arr_Curr_Day", "label": "Flight arrivals (same day)", "delta": 18.295}, {"feature": "Dep_Next_Week", "label": "Flight departures (next 7 days)", "delta": 15.336}, {"feature": "Arr_Last_Day", "label": "Flight arrivals (day before)", "delta": 11.959}, {"feature": "Entries_Lag_14", "label": "Attendance 14 days ago", "delta": 9.478}, {"feature": "Arr_Curr_vs_Trail", "label": "Arrivals vs trailing avg", "delta": 9.301}, {"feature": "DayOfMonth", "label": "Day of month", "delta": 9.271}], "weekday": {"labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], "mean_error": [30.181, -923.284, 597.479, -199.774, -257.026, 468.014, -459.902], "n": [4, 4, 4, 4, 4, 5, 5]}};
 (function () {
   if (!DATA) {
     document.body.innerHTML =
@@ -188,269 +233,340 @@ const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "
     return;
   }
   const M = DATA.meta, H = DATA.holdout, C = DATA.context, F = DATA.features;
-  const fmt = function (x) { return Math.round(x).toLocaleString(); };
+  const BLUE = '#2a78d6', ORANGE = '#eb6834',
+        GRAY = '#9aa4b2', GRAY_L = '#c4cdd8', GRID = '#edf1f6';
+  const fmt = x => Math.round(x).toLocaleString('en-US');
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtDate = iso => MONTHS[+iso.slice(5, 7) - 1] + ' ' + (+iso.slice(8, 10));
+  const narrow = matchMedia('(max-width: 640px)').matches;
+  const flabel = k => (F[k] && F[k].label) || k;
+  const TRUNC = narrow ? 20 : 34;
+  const short = l => l.length > TRUNC ? l.slice(0, TRUNC - 1) + '…' : l;
+  const ftrunc = k => short(flabel(k));
 
   document.getElementById('subtitle').textContent =
-    M.park + ' · forecast window ' + M.window_start + ' → ' + M.window_end +
-    ' · trained on ' + M.n_train + ' operating days · generated ' + M.generated;
+    M.park + ' · forecast ' + M.window_start + ' → ' + M.window_end +
+    ' · trained on ' + fmt(M.n_train) + ' operating days · built ' + M.generated;
   const badge = document.getElementById('modeBadge');
   badge.textContent = M.mode;
   badge.classList.add(M.mode === 'real data' ? 'real' : 'demo');
 
   // ---------------- Decision KPIs ----------------
-  const biasDir = M.week.bias >= 0 ? 'runs low' : 'runs high';
-  const biasRisk = M.week.bias >= 0 ? 'understaffing risk' : 'overstaffing risk';
   const kpis = [
     ['±' + fmt(M.week.mae) + ' guests',
-     (M.week.wape * 100).toFixed(1) + '% of attendance',
-     'Typical daily miss · week-ahead'],
-    ['±' + fmt(M.day.mae) + ' guests',
-     (M.day.wape * 100).toFixed(1) + '% of attendance',
-     'Typical daily miss · day-ahead'],
-    [biasDir + ' ' + fmt(Math.abs(M.week.bias)) + '/day',
-     biasRisk, 'Systematic bias · week-ahead'],
-    [M.soft.hits + ' of ' + M.soft.k + ' caught',
-     M.soft.false_alarms + ' false alarm' + (M.soft.false_alarms === 1 ? '' : 's'),
-     'Soft days flagged a week out']
+     (M.week.wape * 100).toFixed(1) + '% of a typical day',
+     'Average daily miss · week-ahead'],
   ];
   const bb = M.best_baseline;
   if (bb && bb.skill !== null && bb.skill !== undefined) {
     const s = bb.skill * 100;
-    kpis.splice(2, 0, [
-      (s >= 0 ? '\u2212' : '+') + Math.abs(s).toFixed(0) + '% error',
-      'vs ' + bb.name.toLowerCase() + (s >= 0 ? '' : ' \u2014 behind baseline'),
-      'Week-ahead skill vs rule of thumb']);
+    kpis.push(s >= 0
+      ? [Math.abs(s).toFixed(0) + '% less error',
+         'than "' + bb.name.toLowerCase() + '"', 'Vs best rule of thumb']
+      : [Math.abs(s).toFixed(0) + '% more error',
+         'than "' + bb.name.toLowerCase() + '" — behind', 'Vs best rule of thumb']);
   }
-  document.getElementById('kpis').innerHTML = kpis.map(function (k) {
-    return '<div class="kpi"><div class="kpi-v">' + k[0] + '</div>' +
-           '<div class="kpi-s">' + k[1] + '</div>' +
-           '<div class="kpi-l">' + k[2] + '</div></div>';
-  }).join('');
+  const biasHigh = M.week.bias < 0;  // bias = actual − forecast
+  kpis.push(
+    ['~' + fmt(Math.abs(M.week.bias)) + ' guests ' + (biasHigh ? 'high' : 'low'),
+     biasHigh ? 'plans lean overstaffed' : 'plans lean understaffed',
+     'Average forecast bias · week-ahead'],
+    [M.soft.hits + ' of ' + M.soft.k + ' caught',
+     M.soft.false_alarms + ' false alarm' + (M.soft.false_alarms === 1 ? '' : 's'),
+     'Soft days flagged a week out'],
+    ['±' + fmt(M.day.mae) + ' guests',
+     'the ceiling with fresh data',
+     'Average daily miss · day-ahead']);
+  document.getElementById('kpis').innerHTML = kpis.map(k =>
+    '<div class="kpi"><div class="kpi-v">' + k[0] + '</div>' +
+    '<div class="kpi-s">' + k[1] + '</div>' +
+    '<div class="kpi-l">' + k[2] + '</div></div>').join('');
 
   const base = {
-    margin: { t: 24, r: 30, b: 40, l: 60 },
-    font: { size: 12 },
+    margin: { t: 20, r: 16, b: 44, l: narrow ? 48 : 58 },
+    font: { size: 12, color: '#5b6b7b',
+            family: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif' },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    hovermode: 'closest'
+    hovermode: 'closest',
+    barcornerradius: 3,
+    xaxis: { gridcolor: GRID, zeroline: false },
+    yaxis: { gridcolor: GRID, zeroline: false },
   };
-  const cfg = { responsive: true, displaylogo: false };
+  const mergeAxes = (b, o) => {
+    const out = Object.assign({}, b, o);
+    out.xaxis = Object.assign({}, b.xaxis, o.xaxis || {});
+    out.yaxis = Object.assign({}, b.yaxis, o.yaxis || {});
+    return out;
+  };
+  const cfg = { responsive: true, displayModeBar: false };
 
   // ---------------- Main forecast chart ----------------
   Plotly.newPlot('mainChart', [
-    { x: C.dates, y: C.actual, name: 'Actual (context)', mode: 'lines',
-      line: { color: '#9aa4b2', width: 1.5 } },
+    { x: C.dates, y: C.actual, name: 'History', mode: 'lines',
+      line: { color: GRAY, width: 1.5 }, legendrank: 1005,
+      hovertemplate: '%{y:,.0f}<extra>History</extra>' },
     { x: H.dates, y: H.band_lo, mode: 'lines', line: { width: 0 },
       hoverinfo: 'skip', showlegend: false },
     { x: H.dates, y: H.band_hi, mode: 'lines', line: { width: 0 },
-      fill: 'tonexty', fillcolor: 'rgba(226,113,29,0.12)',
-      name: '80% band', hoverinfo: 'skip' },
-    { x: H.dates, y: H.actual, name: 'Actual', mode: 'lines+markers',
-      line: { color: '#1f4e79', width: 2 }, marker: { size: 5 } },
-    { x: H.dates, y: H.pred_week, name: 'Week-ahead forecast',
-      mode: 'lines+markers',
-      line: { color: '#e2711d', width: 2, dash: 'dash' }, marker: { size: 5 } },
+      fill: 'tonexty', fillcolor: 'rgba(235,104,52,0.10)',
+      name: '80% range', hoverinfo: 'skip', legendrank: 1003 },
     { x: H.dates, y: H.pred_day, name: 'Day-ahead (reference)', mode: 'lines',
-      line: { color: '#7a8899', width: 1.2, dash: 'dot' } },
-    { x: H.dates, y: H.err_week, name: 'Week-ahead error', type: 'bar',
-      yaxis: 'y2',
-      marker: { color: H.err_week.map(function (e) {
-        return e >= 0 ? 'rgba(31,78,121,.35)' : 'rgba(226,113,29,.35)'; }) } }
-  ], Object.assign({}, base, {
-    height: 430,
-    shapes: [{ type: 'line', x0: H.dates[0], x1: H.dates[0], y0: 0, y1: 1,
-               yref: 'paper', line: { dash: 'dot', color: '#888' } }],
-    annotations: [{ x: H.dates[0], y: 1.04, yref: 'paper',
-                    text: 'forecast start', showarrow: false, xanchor: 'left',
-                    font: { size: 11, color: '#666' } }],
-    yaxis: { title: 'Attendance' },
-    yaxis2: { overlaying: 'y', side: 'right', title: 'Error', showgrid: false,
-              zeroline: true },
-    legend: { orientation: 'h', y: -0.22 }
+      line: { color: '#7a8899', width: 1.2, dash: 'dot' }, legendrank: 1004,
+      visible: narrow ? 'legendonly' : true,
+      hovertemplate: '%{y:,.0f}<extra>Day-ahead</extra>' },
+    { x: H.dates, y: H.actual, name: 'Actual', mode: 'lines+markers',
+      line: { color: BLUE, width: 2 }, legendrank: 1001,
+      marker: { size: 6, line: { color: '#fff', width: 1.5 } },
+      hovertemplate: '%{y:,.0f}<extra>Actual</extra>' },
+    { x: H.dates, y: H.pred_week, name: 'Week-ahead forecast',
+      mode: 'lines+markers', legendrank: 1002,
+      line: { color: ORANGE, width: 2, dash: 'dash' },
+      marker: { size: 6, line: { color: '#fff', width: 1.5 } },
+      hovertemplate: '%{y:,.0f}<extra>Week-ahead</extra>' }
+  ], mergeAxes(base, {
+    height: narrow ? 340 : 420,
+    hovermode: 'x unified',
+    shapes: [
+      { type: 'rect', x0: H.dates[0], x1: H.dates[H.dates.length - 1],
+        y0: 0, y1: 1, yref: 'paper', layer: 'below', line: { width: 0 },
+        fillcolor: 'rgba(27,39,51,0.03)' },
+      { type: 'line', x0: H.dates[0], x1: H.dates[0], y0: 0, y1: 1,
+        yref: 'paper', line: { dash: 'dot', color: '#9aa4b2', width: 1 } }
+    ],
+    annotations: [{ x: H.dates[0], y: 1.05, yref: 'paper',
+                    text: 'forecast window →', showarrow: false,
+                    xanchor: 'left', font: { size: 11, color: '#8a97a5' } }],
+    yaxis: { title: { text: 'Guests/day' } },
+    legend: { orientation: 'h', y: -0.2, traceorder: 'normal' }
   }), cfg);
 
-  // ---------------- Staffing cost panel ----------------
-  function staffingRender() {
+  // ---------------- Labor budget panel ----------------
+  function laborRender() {
     const gph = Math.max(1, parseFloat(document.getElementById('gph').value) || 1);
     const rate = Math.max(0, parseFloat(document.getElementById('rate').value) || 0);
     let overH = 0, underH = 0, overDays = 0, underDays = 0;
-    H.err_week.forEach(function (e) {
+    const hrsShort = [], hrsWaste = [], hoverData = [];
+    H.err_week.forEach(e => {
       const hrs = Math.abs(e) / gph;
-      if (e < 0) { overH += hrs; overDays++; } else { underH += hrs; underDays++; }
+      if (e < 0) { overH += hrs; overDays++; hrsShort.push(null); hrsWaste.push(-hrs); }
+      else { underH += hrs; underDays++; hrsShort.push(hrs); hrsWaste.push(null); }
+      hoverData.push([e, hrs * rate]);
     });
     const worstHrs = Math.abs(M.worst.err) / gph;
+    const worstShort = M.worst.err >= 0;
     document.getElementById('staffStats').innerHTML = [
-      ['~' + fmt(overH) + ' staff-hrs / $' + fmt(overH * rate),
-       'Overstaffing across ' + overDays + ' quieter-than-planned days'],
-      ['~' + fmt(underH) + ' staff-hrs / $' + fmt(underH * rate),
-       'Coverage gap across ' + underDays + ' busier-than-planned days'],
-      ['~' + fmt((overH + underH) / H.dates.length) + ' staff-hrs/day',
-       'Average daily misallocation'],
-      [M.worst.date + ' · ' + (M.worst.err >= 0 ? '+' : '') + fmt(M.worst.err) +
-       ' guests ≈ ' + fmt(worstHrs) + ' hrs',
-       'Largest single-day exposure']
-    ].map(function (s) {
-      return '<div class="stat"><b>' + s[0] + '</b><div class="l">' + s[1] +
-             '</div></div>';
-    }).join('');
+      ['$' + fmt(overH * rate) + ' wasted',
+       fmt(overH) + ' paid staff-hours not needed, across ' + overDays +
+       ' quieter-than-planned days'],
+      [fmt(underH) + ' hrs short',
+       'coverage gap across ' + underDays + ' busier-than-planned days ' +
+       '(≈ $' + fmt(underH * rate) + ' to backfill)'],
+      ['~' + fmt((overH + underH) / H.dates.length) + ' hrs/day',
+       'typical daily misallocation, either direction'],
+      [fmtDate(M.worst.date) + ' · ' + fmt(worstHrs) + ' hrs ' +
+       (worstShort ? 'short' : 'over'),
+       'worst single day: ' + (worstShort ? '' : '−') +
+       fmt(Math.abs(M.worst.err)) + ' guests vs plan']
+    ].map(s => '<div class="stat"><b>' + s[0] + '</b><div class="l">' + s[1] +
+               '</div></div>').join('');
+
+    const hover = '%{x}<br><b>%{customdata[0]:+,.0f} guests vs plan</b>' +
+                  '<br>≈ $%{customdata[1]:,.0f} at your rate<extra></extra>';
+    Plotly.react('laborChart', [
+      { x: H.dates, y: hrsShort, type: 'bar', name: 'Hours short (ran busier)',
+        marker: { color: BLUE }, customdata: hoverData, hovertemplate: hover },
+      { x: H.dates, y: hrsWaste, type: 'bar', name: 'Hours wasted (ran quieter)',
+        marker: { color: ORANGE }, customdata: hoverData, hovertemplate: hover }
+    ], mergeAxes(base, {
+      height: 290, barmode: 'relative', bargap: 0.35,
+      margin: { t: 8, r: 16, b: 40, l: narrow ? 42 : 52 },
+      yaxis: { title: { text: 'Staff-hours vs plan' },
+               zeroline: true, zerolinecolor: '#c9d2dd' },
+      legend: { orientation: 'h', y: -0.22 }
+    }), cfg);
   }
-  document.getElementById('gph').addEventListener('input', staffingRender);
-  document.getElementById('rate').addEventListener('input', staffingRender);
-  staffingRender();
+  document.getElementById('gph').addEventListener('input', laborRender);
+  document.getElementById('rate').addEventListener('input', laborRender);
+  laborRender();
 
   // ---------------- Soft-day panel ----------------
-  const aSet = {}, pSet = {};
-  M.soft.actual_idx.forEach(function (i) { aSet[i] = true; });
-  M.soft.pred_idx.forEach(function (i) { pSet[i] = true; });
+  const pSet = new Set(M.soft.pred_idx);
+  const aSet = new Set(M.soft.actual_idx);
   document.getElementById('softStats').innerHTML = [
-    [M.soft.hits + ' / ' + M.soft.k, 'Soft days correctly flagged 7 days out'],
-    [String(M.soft.false_alarms), 'Flagged soft but turned out ordinary'],
-  ].map(function (s) {
-    return '<div class="stat"><b>' + s[0] + '</b><div class="l">' + s[1] +
-           '</div></div>';
-  }).join('');
-  const chips = [];
-  M.soft.actual_idx.forEach(function (i) {
-    chips.push('<span class="chip ' + (pSet[i] ? 'hit' : 'miss') + '">' +
-      H.dates[i] + (pSet[i] ? ' ✓ flagged' : ' ✗ missed') + '</span>');
-  });
-  M.soft.pred_idx.forEach(function (i) {
-    if (!aSet[i]) {
-      chips.push('<span class="chip fa">' + H.dates[i] + ' · false alarm</span>');
-    }
-  });
-  document.getElementById('softChips').innerHTML = chips.join('');
+    [M.soft.hits + ' / ' + M.soft.k, 'soft days correctly flagged 7 days out'],
+    [String(M.soft.false_alarms), 'flagged soft but turned out ordinary'],
+  ].map(s => '<div class="stat"><b>' + s[0] + '</b><div class="l">' + s[1] +
+             '</div></div>').join('');
+  const chipDefs = [];
+  M.soft.actual_idx.forEach(i => chipDefs.push([i, pSet.has(i) ? 'hit' : 'miss']));
+  M.soft.pred_idx.forEach(i => { if (!aSet.has(i)) chipDefs.push([i, 'fa']); });
+  chipDefs.sort((a, b) => a[0] - b[0]);
+  const CHIP_TEXT = { hit: ' ✓ flagged', miss: ' ✗ missed', fa: ' · false alarm' };
+  document.getElementById('softChips').innerHTML = chipDefs.map(c =>
+    '<span class="chip ' + c[1] + '">' + fmtDate(H.dates[c[0]]) +
+    CHIP_TEXT[c[1]] + '</span>').join('');
 
   // ---------------- Baseline comparison ----------------
   const bl = M.baselines || [];
-  const perfNames = ['Week-ahead model', 'Day-ahead model']
-    .concat(bl.map(function (b) { return b.name; }));
-  const perfMaes = [M.week.mae, M.day.mae]
-    .concat(bl.map(function (b) { return b.mae; }));
-  const perfN = [H.dates.length, H.dates.length]
-    .concat(bl.map(function (b) { return b.n; }));
-  const perfColors = ['#1f4e79', '#7a8899']
-    .concat(bl.map(function () { return '#c4cdd8'; }));
+  const perf = [
+    { name: 'Week-ahead model', mae: M.week.mae, n: H.dates.length, color: BLUE },
+    { name: 'Day-ahead model', mae: M.day.mae, n: H.dates.length, color: '#7a8899' },
+  ].concat(bl.map(b => ({ name: b.name, mae: b.mae, n: b.n, color: GRAY_L })))
+   .reverse();
   Plotly.newPlot('baselineChart', [{
-    x: perfMaes.slice().reverse(), y: perfNames.slice().reverse(),
-    customdata: perfN.slice().reverse(),
+    x: perf.map(p => p.mae), y: perf.map(p => p.name),
+    customdata: perf.map(p => p.n),
     type: 'bar', orientation: 'h',
-    marker: { color: perfColors.slice().reverse() },
-    hovertemplate: '%{y}<br>MAE %{x:,.0f} guests · %{customdata} days' +
+    marker: { color: perf.map(p => p.color) },
+    text: perf.map(p => fmt(p.mae)), textposition: 'outside',
+    textfont: { size: 11, color: '#5b6b7b' }, cliponaxis: false,
+    hovertemplate: '%{y}<br>average miss %{x:,.0f} guests · over %{customdata} days' +
                    '<extra></extra>'
-  }], Object.assign({}, base, {
-    height: 300,
-    margin: { t: 24, r: 20, b: 40, l: 190 },
-    xaxis: { title: 'MAE (guests) — lower is better' }
+  }], mergeAxes(base, {
+    height: 290, bargap: 0.45,
+    margin: { t: 8, r: 44, b: 40, l: 20 },
+    xaxis: { title: { text: 'Average daily miss (guests) — shorter is better' } },
+    yaxis: { gridcolor: 'rgba(0,0,0,0)', automargin: true }
   }), cfg);
 
   // ---------------- Tolerance hit rates + band coverage ----------------
   const T = M.tolerance;
-  const tLabels = T.thresholds.map(function (x) { return '\u00b1' + x + '%'; });
+  const tLabels = T.thresholds.map(x => 'within ±' + x + '%');
   Plotly.newPlot('toleranceChart', [
-    { x: tLabels, y: T.model.map(function (v) { return v * 100; }),
-      name: 'Week-ahead model', type: 'bar', marker: { color: '#1f4e79' } },
-    { x: tLabels, y: T.baseline.map(function (v) { return v * 100; }),
-      name: T.baseline_name + ' (n=' + T.baseline_n + ')', type: 'bar',
-      marker: { color: '#c4cdd8' } }
-  ], Object.assign({}, base, {
-    height: 300, barmode: 'group',
-    yaxis: { title: '% of days within tolerance', range: [0, 100] },
-    legend: { orientation: 'h', y: -0.28 }
+    { x: tLabels, y: T.model.map(v => v * 100),
+      name: 'Week-ahead model', type: 'bar', marker: { color: BLUE } },
+    { x: tLabels, y: T.baseline.map(v => v * 100),
+      name: T.baseline_name, type: 'bar',
+      marker: { color: GRAY_L } }
+  ], mergeAxes(base, {
+    height: 290, barmode: 'group', bargap: 0.35, bargroupgap: 0.08,
+    margin: { t: 8, r: 16, b: 40, l: narrow ? 42 : 52 },
+    yaxis: { title: { text: '% of forecast days' }, range: [0, 100] },
+    legend: { orientation: 'h', y: -0.25 }
   }), cfg);
   document.getElementById('bandNote').innerHTML =
-    'The shaded band on the forecast chart is an <b>80% empirical range</b> from ' +
-    'validation residuals; it covered <b>' + M.band.coverage + '/' +
-    H.dates.length + '</b> forecast days (target \u2248 ' +
-    Math.round(0.8 * H.dates.length) + ') \u2014 plan staffing to the band, ' +
-    'not the point.';
+    'The shaded range on the forecast chart is an <b>80% empirical band</b> from ' +
+    'validation errors. Out of sample it held <b>' + M.band.coverage + ' of ' +
+    H.dates.length + '</b> days (target ≈ ' + Math.round(0.8 * H.dates.length) +
+    ').';
 
   // ---------------- Weekday bias ----------------
+  const wd = DATA.weekday;
   Plotly.newPlot('weekdayChart', [{
-    x: DATA.weekday.labels, y: DATA.weekday.mean_error, type: 'bar',
-    marker: { color: DATA.weekday.mean_error.map(function (e) {
-      return e >= 0 ? '#1f4e79' : '#e2711d'; }) }
-  }], Object.assign({}, base, {
-    height: 300,
-    yaxis: { title: 'Mean signed error (wk-ahead)', zeroline: true }
+    x: wd.labels, y: wd.mean_error, type: 'bar',
+    customdata: wd.n || wd.labels.map(() => null),
+    marker: { color: wd.mean_error.map(e => e >= 0 ? BLUE : ORANGE) },
+    hovertemplate: '%{x}: %{y:+,.0f} guests vs forecast' +
+                   '<br>average over %{customdata} days<extra></extra>'
+  }], mergeAxes(base, {
+    height: 290, bargap: 0.45,
+    margin: { t: 8, r: 16, b: 40, l: narrow ? 42 : 52 },
+    yaxis: { title: { text: 'Avg miss (guests)' },
+             zeroline: true, zerolinecolor: '#c9d2dd' }
   }), cfg);
 
   // ---------------- Importance ----------------
   const imp = DATA.importance.slice().reverse();
   Plotly.newPlot('importanceChart', [{
-    x: imp.map(function (d) { return d.delta; }),
-    y: imp.map(function (d) { return d.feature; }),
-    type: 'bar', orientation: 'h', marker: { color: '#1f4e79' }
-  }], Object.assign({}, base, {
-    height: 340,
-    margin: { t: 24, r: 20, b: 40, l: 170 },
-    xaxis: { title: 'Permutation ΔMAE' }
+    x: imp.map(d => d.delta),
+    y: imp.map(d => ftrunc(d.feature)),
+    customdata: imp.map(d => d.label || d.feature),
+    type: 'bar', orientation: 'h', marker: { color: BLUE },
+    hovertemplate: '%{customdata}<br>+%{x:,.0f} guests of extra miss when ' +
+                   'scrambled<extra></extra>'
+  }], mergeAxes(base, {
+    height: 340, bargap: 0.4,
+    margin: { t: 8, r: 16, b: 40, l: 20 },
+    xaxis: { title: { text: 'Extra miss when scrambled (guests)' } },
+    yaxis: { gridcolor: 'rgba(0,0,0,0)', automargin: true }
   }), cfg);
 
-  // ---------------- Feature overlay ----------------
+  // ---------------- Feature overlay (diagnostics) ----------------
+  const GROUP_ORDER = ['Attendance lags', 'Calendar', 'Flights', 'Weather',
+                       'Operations', 'Bookings'];
   const groups = {};
-  Object.keys(F).forEach(function (k) {
-    const g = F[k].group;
-    (groups[g] = groups[g] || []).push(k);
+  Object.keys(F).forEach(k => {
+    (groups[F[k].group] = groups[F[k].group] || []).push(k);
   });
   const filt = document.getElementById('featureFilters');
-  Object.keys(groups).sort().forEach(function (g) {
-    const div = document.createElement('div');
-    div.className = 'fgroup';
-    div.innerHTML = '<span class="gname">' + g + '</span>' +
-      groups[g].sort().map(function (k) {
-        const mark = F[k].in_week_model ? '' : '&dagger;';
-        return '<label class="pill"><input type="checkbox" value="' + k + '">' +
-               k + mark + '</label>';
-      }).join('');
-    filt.appendChild(div);
-  });
+  GROUP_ORDER.filter(g => groups[g])
+    .concat(Object.keys(groups).filter(g => !GROUP_ORDER.includes(g)).sort())
+    .forEach(g => {
+      const div = document.createElement('div');
+      div.className = 'fgroup';
+      const span = document.createElement('span');
+      span.className = 'gname';
+      span.textContent = g;
+      const pills = document.createElement('span');
+      pills.className = 'fpills';
+      groups[g].sort((a, b) => flabel(a).localeCompare(flabel(b))).forEach(k => {
+        const lab = document.createElement('label');
+        lab.className = 'pill';
+        const inp = document.createElement('input');
+        inp.type = 'checkbox';
+        inp.value = k;
+        lab.appendChild(inp);
+        lab.appendChild(document.createTextNode(
+          flabel(k) + (F[k].in_week_model ? '' : '†')));
+        pills.appendChild(lab);
+      });
+      div.appendChild(span);
+      div.appendChild(pills);
+      filt.appendChild(div);
+    });
 
   function norm(vals) {
-    const nn = vals.filter(function (v) { return v !== null && v !== undefined; });
-    if (!nn.length) { return vals.map(function () { return null; }); }
+    const nn = vals.filter(v => v !== null && v !== undefined);
+    if (!nn.length) { return vals.map(() => null); }
     const lo = Math.min.apply(null, nn), hi = Math.max.apply(null, nn);
-    return vals.map(function (v) {
-      if (v === null || v === undefined) { return null; }
-      return hi > lo ? (v - lo) / (hi - lo) : 0.5;
-    });
+    return vals.map(v => (v === null || v === undefined) ? null
+      : (hi > lo ? (v - lo) / (hi - lo) : 0.5));
   }
   function overlayTraces() {
-    const sel = Array.prototype.slice
-      .call(filt.querySelectorAll('input:checked'))
-      .map(function (i) { return i.value; });
+    const sel = Array.from(filt.querySelectorAll('input:checked'), i => i.value);
     const traces = [
       { x: H.dates, y: norm(H.actual), name: 'Actual', mode: 'lines',
-        line: { color: '#1f4e79', width: 2.5 }, customdata: H.actual,
-        hovertemplate: '%{x}<br>Actual: %{customdata:,.0f}<extra></extra>' },
+        line: { color: BLUE, width: 2 }, customdata: H.actual,
+        hovertemplate: 'Actual: %{customdata:,.0f}<extra></extra>' },
       { x: H.dates, y: norm(H.pred_week), name: 'Week-ahead', mode: 'lines',
-        line: { color: '#e2711d', width: 2.5, dash: 'dash' },
+        line: { color: ORANGE, width: 2, dash: 'dash' },
         customdata: H.pred_week,
-        hovertemplate: '%{x}<br>Week-ahead: %{customdata:,.0f}<extra></extra>' }
+        hovertemplate: 'Week-ahead: %{customdata:,.0f}<extra></extra>' }
     ];
-    sel.forEach(function (k) {
-      traces.push({ x: H.dates, y: norm(F[k].values), name: k, mode: 'lines',
-                    line: { width: 1.5 }, customdata: F[k].values,
-                    hovertemplate: '%{x}<br>' + k +
-                                   ': %{customdata}<extra></extra>' });
+    sel.forEach(k => {
+      traces.push({ x: H.dates, y: norm(F[k].values), name: ftrunc(k),
+                    mode: 'lines', line: { width: 1.5 },
+                    customdata: F[k].values,
+                    hovertemplate: flabel(k) + ': %{customdata}<extra></extra>' });
     });
     return traces;
   }
   function drawOverlay() {
-    Plotly.react('overlayChart', overlayTraces(), Object.assign({}, base, {
-      height: 400,
-      yaxis: { title: 'Normalized 0–1', range: [-0.05, 1.08] },
-      legend: { orientation: 'h', y: -0.25 }
+    Plotly.react('overlayChart', overlayTraces(), mergeAxes(base, {
+      height: 380, hovermode: 'x unified',
+      colorway: [BLUE, ORANGE, '#1baf7a', '#eda100', '#e87ba4', '#008300',
+                 '#4a3aa7', '#e34948'],
+      yaxis: { title: { text: 'Scaled 0–1' }, range: [-0.05, 1.08] },
+      legend: { orientation: 'h', y: -0.22 }
     }), cfg);
   }
   filt.addEventListener('change', drawOverlay);
-  drawOverlay();
+  // The chart lives inside a collapsed <details>: draw it only once open,
+  // otherwise Plotly measures a zero-width container.
+  const diagDetails = filt.closest('details');
+  let overlayDrawn = false;
+  diagDetails.addEventListener('toggle', () => {
+    if (!diagDetails.open) { return; }
+    if (!overlayDrawn) { overlayDrawn = true; drawOverlay(); }
+    else { Plotly.Plots.resize('overlayChart'); }
+  });
 
-  // ---------------- Error vs feature ----------------
+  // ---------------- Error vs driver ----------------
   const selEl = document.getElementById('scatterSelect');
-  Object.keys(F).sort().forEach(function (k) {
+  Object.keys(F).sort((a, b) => flabel(a).localeCompare(flabel(b))).forEach(k => {
     const o = document.createElement('option');
-    o.value = k; o.textContent = k;
+    o.value = k; o.textContent = flabel(k);
     selEl.appendChild(o);
   });
   function pearson(x, y) {
@@ -462,10 +578,10 @@ const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "
     const n = pts.length;
     if (n < 3) { return NaN; }
     let mx = 0, my = 0;
-    pts.forEach(function (p) { mx += p[0]; my += p[1]; });
+    pts.forEach(p => { mx += p[0]; my += p[1]; });
     mx /= n; my /= n;
     let sxy = 0, sx = 0, sy = 0;
-    pts.forEach(function (p) {
+    pts.forEach(p => {
       sxy += (p[0] - mx) * (p[1] - my);
       sx += (p[0] - mx) * (p[0] - mx);
       sy += (p[1] - my) * (p[1] - my);
@@ -478,18 +594,21 @@ const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "
     const r = pearson(f.values, H.err_week);
     Plotly.react('scatterChart', [{
       x: f.values, y: H.err_week, mode: 'markers', type: 'scatter',
-      text: H.dates,
-      hovertemplate: '%{text}<br>' + k + ': %{x}<br>wk-ahead error: ' +
-                     '%{y:,.0f}<extra></extra>',
-      marker: { color: '#1f4e79', size: 8, opacity: 0.8 }
-    }], Object.assign({}, base, {
-      height: 340,
-      xaxis: { title: k },
-      yaxis: { title: 'Signed error (wk-ahead)', zeroline: true },
+      text: H.dates.map(fmtDate),
+      hovertemplate: '%{text}<br>' + flabel(k) + ': %{x}<br>miss: ' +
+                     '%{y:+,.0f} guests<extra></extra>',
+      marker: { color: BLUE, size: 9, opacity: 0.85,
+                line: { color: '#fff', width: 1.5 } }
+    }], mergeAxes(base, {
+      height: 320,
+      margin: { t: 8, r: 16, b: 44, l: narrow ? 48 : 58 },
+      xaxis: { title: { text: flabel(k) } },
+      yaxis: { title: { text: 'Miss (guests, + = ran busier)' },
+               zeroline: true, zerolinecolor: '#c9d2dd' },
       annotations: [{ x: 0.02, y: 0.98, xref: 'paper', yref: 'paper',
                       showarrow: false, xanchor: 'left',
-                      text: 'r = ' + (isNaN(r) ? '–' : r.toFixed(2)),
-                      font: { size: 12, color: '#666' } }]
+                      text: 'correlation r = ' + (isNaN(r) ? '–' : r.toFixed(2)),
+                      font: { size: 12, color: '#8a97a5' } }]
     }), cfg);
   }
   selEl.addEventListener('change', drawScatter);
@@ -500,7 +619,7 @@ const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "
   }
 
   // ---------------- Ledger ----------------
-  const rows = H.dates.map(function (d, i) {
+  const rows = H.dates.map((d, i) => {
     const a = H.actual[i], pw = H.pred_week[i], e = H.err_week[i];
     return '<tr><td>' + d + '</td><td>' + fmt(a) + '</td><td>' + fmt(pw) +
       '</td><td class="' + (e >= 0 ? 'pos' : 'neg') + '">' +
@@ -509,23 +628,26 @@ const DATA = {"meta": {"park": "PortAventura World", "mode": "synthetic demo", "
       '</td></tr>';
   }).join('');
   document.getElementById('tableWrap').innerHTML =
-    '<table><thead><tr><th>Date</th><th>Actual</th><th>Wk-ahead</th>' +
-    '<th>Error</th><th>Day-ahead</th><th>|Err| % (wk)</th></tr></thead><tbody>' +
+    '<table><thead><tr><th>Date</th><th>Actual</th><th>Week-ahead</th>' +
+    '<th>Miss</th><th>Day-ahead</th><th>Miss %</th></tr></thead><tbody>' +
     rows + '</tbody></table>';
 
   // ---------------- Methodology ----------------
   document.getElementById('method').innerHTML =
-    '<b>Method.</b> XGBoost on weather, calendar/holiday, EUROCONTROL flight ' +
-    'volumes, operating hours and attendance history; last 30 operating days ' +
-    'held out. Week-ahead excludes features needing data fresher than 7 days ' +
-    'before the target (' + M.week_ahead_dropped.join(', ') + '). Honest ' +
-    'caveats: week-ahead uses realized weather where production would use a ' +
-    'forecast (slightly flattering), and staffing dollars are illustrative ' +
-    'conversions of your ratio inputs, not measured costs. Skill compares against ' +
-    'naive baselines that use realized actuals as they become available; the 80% ' +
-    'band applies validation-residual ratio quantiles to the point forecast. Data: Kaggle ' +
-    '<code>ayushtankha/hackathon</code> + EUROCONTROL AIU airport traffic. ' +
-    'Rebuild with <code>python src/build_dashboard.py</code>.';
+    '<p><b>Model.</b> XGBoost on weather, calendar &amp; holidays, EUROCONTROL ' +
+    'flight volumes, operating hours and attendance history; the last 30 ' +
+    'operating days are held out and never seen in training. The week-ahead ' +
+    'model additionally drops anything needing data fresher than 7 days before ' +
+    'the target: ' + M.week_ahead_dropped.join(', ').toLowerCase() + '.</p>' +
+    '<p><b>Honest caveats.</b> Week-ahead uses realized weather where ' +
+    'production would use a weather forecast (slightly flattering). Labor ' +
+    'dollars are illustrative conversions of your ratio inputs, not measured ' +
+    'costs. Rules of thumb roll forward with realized actuals as they become ' +
+    'available. The 80% band applies validation-error quantiles to the point ' +
+    'forecast.</p>' +
+    '<p><b>Data &amp; rebuild.</b> Kaggle <code>ayushtankha/hackathon</code> ' +
+    '(attendance, weather, schedules) + EUROCONTROL AIU airport traffic. ' +
+    'Rebuild with <code>python src/build_dashboard.py</code>.</p>';
 })();
 </script>
 </body>

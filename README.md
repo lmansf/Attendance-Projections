@@ -29,19 +29,24 @@ spend.** Two horizons are modeled: **week-ahead** (headline — only features
 knowable 7+ days before the target, the schedule-lock / media-buy horizon) and
 **day-ahead** (reference ceiling, uses yesterday's actuals). Panels in order:
 
-1. **Decision KPIs** — typical miss at each horizon, systematic bias direction
-   (under/overstaffing risk), soft days flagged a week out
-2. **Forecast vs actual** — the evidence, with signed week-ahead error bars
-3. **Staffing cost of error** — misallocated staff-hours and dollars from
-   *your* ratio inputs (guests per staff-hour, loaded rate) — assumptions are
-   explicit and adjustable, never fake precision
-4. **Soft-day detection** — bottom-quartile days flagged 7 days out: caught,
+1. **Decision KPIs** — typical miss, skill vs the best rule of thumb, bias
+   direction (under/overstaffing risk), soft days flagged a week out
+2. **Forecast vs actual** — the evidence: history, forecast, and an 80%
+   planning band over the 30-day out-of-sample window
+3. **Rule-of-thumb comparison + tolerance hit-rates** — is the model worth
+   using, and how often is it close enough to schedule from?
+4. **Labor budget** — forecast misses converted to wasted staff-hours and
+   coverage gaps, priced by *your* adjustable ratio inputs (guests per
+   staff-hour, loaded rate); a live chart rescales as you type — assumptions
+   are explicit, never fake precision
+5. **Soft-day detection** — bottom-quartile days flagged 7 days out: caught,
    missed, false alarms (the ad-spend lens)
-5. **Weekday bias + drivers** — recurring roster errors to correct; permutation
-   importance of the deployable week-ahead model
-6. **Diagnostics** — feature overlay explorer and error-vs-feature scatter, for
-   understanding a miss before overriding the schedule
-7. **Day-by-day ledger**
+6. **Weekday bias + drivers** — recurring roster errors to correct;
+   permutation importance and an error-vs-driver scatter for the deployable
+   week-ahead model
+7. **Diagnostics** (collapsed) — feature overlay explorer for investigating a
+   specific missed day before overriding the schedule
+8. **Day-by-day ledger**
 
 ## Repository layout
 ```
