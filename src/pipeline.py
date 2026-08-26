@@ -345,6 +345,11 @@ def add_pack2_features(df: pd.DataFrame, files, park: str) -> pd.DataFrame:
     df["Entries_WkSafe_Mean7"] = df["Entries"].shift(7).rolling(7).mean()
     df["Entries_WkSafe_Std7"] = df["Entries"].shift(7).rolling(7).std()
     df["Entries_Lag7_minus_14"] = df["Entries_Lag_7"] - df["Entries_Lag_14"]
+    # month-safe variants: usable at a ~30-day labor-lock horizon
+    df["Entries_Lag_35"] = df["Entries"].shift(35)
+    df["Entries_Lag_42"] = df["Entries"].shift(42)
+    df["Entries_MonthSafe_Mean28"] = df["Entries"].shift(30).rolling(28).mean()
+    df["Entries_MonthSafe_Std28"] = df["Entries"].shift(30).rolling(28).std()
 
     eps = 1e-6
     if "Arr_Next_Week" in df.columns:

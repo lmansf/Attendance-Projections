@@ -46,9 +46,11 @@ real results, then commit — Vercel redeploys automatically on push.
 
 ## The story the dashboard tells (top-down)
 **Goal: predict attendance far enough ahead to set labor schedules and time ad
-spend.** Two horizons are modeled: **week-ahead** (headline — only features
-knowable 7+ days before the target, the schedule-lock / media-buy horizon) and
-**day-ahead** (reference ceiling, uses yesterday's actuals). Panels in order:
+spend.** Three horizons are modeled: **month-ahead** (the labor-budget /
+roster-lock horizon — only features knowable 30+ days out, no weather),
+**week-ahead** (schedule adjustments and media buys — features knowable 7+
+days out) and **day-ahead** (reference ceiling, uses yesterday's actuals).
+Panels in order:
 
 1. **Decision KPIs** — typical miss, skill vs the best rule of thumb, bias
    direction (under/overstaffing risk), soft days flagged a week out

@@ -88,8 +88,9 @@ const main = async () => {
       color: CREAM, margin: 0,
     });
     s.addText(
-      "Week-ahead attendance forecasting for staffing and ad spend — phase-gated, " +
-      "measured against our own incumbent before operations changes anything.",
+      "Month-ahead attendance forecasting for the labor lock, week-ahead for " +
+      "adjustments and ad spend — phase-gated, measured against our own " +
+      "incumbent before operations changes anything.",
       { x: M, y: 4.0, w: 9.6, h: 0.9, fontFace: SANS, fontSize: 17,
         color: "D8CDB4", margin: 0 });
     s.addText(
@@ -103,10 +104,10 @@ const main = async () => {
     const s = pres.addSlide();
     s.background = { color: WHITE };
     kicker(s, "The decision problem");
-    title(s, "Staffing 3,285 guests on a 947-guest miss.");
+    title(s, "Labor locks a month out — on a 947 miss.");
     const rows = [
-      ["FiLock", "Schedules lock ~7 days out", "Rosters for our ~300 employees are set before the week is knowable."],
-      ["FiVolume2", "Ad spend commits at the same horizon", "Promos and media buys need soft days flagged a week early to act at all."],
+      ["FiLock", "Labor budgets commit ~30 days out", "The zoo plans rosters and labor for ~300 employees a month ahead — so the model's headline horizon is month-ahead, matching that lock."],
+      ["FiVolume2", "Adjustments and ad spend at ~7 days", "Weekly schedule tweaks and media buys key on a week-ahead forecast; promos need soft days flagged early enough to act."],
       ["FiHelpCircle", "Today's miss is measured, and it is large", "Against our own 10/2017–7/2026 history, current projections average a 947-guest daily miss (MAE) — a 29% error on a 3,285-guest average day."],
     ];
     let y = 2.15;
@@ -145,6 +146,7 @@ const main = async () => {
       ["Loaded cost / staff-hour", "$18", "$15 wage + ~20% load"],
       ["Operating days / year", "320", "our calendar"],
       ["Capture rate", "30–50%", "min shifts, fixed posts"],
+      ["Forecast horizon", "month-ahead", "matches the labor lock"],
     ];
     s.addTable(tbl.map(r => r.map(c => typeof c === "string" ? { text: c, options: { color: BODY } } : c)), {
       x: M, y: 2.15, w: 5.9, colW: [2.7, 1.35, 1.85], fontFace: SANS, fontSize: 11.5,
@@ -198,7 +200,7 @@ const main = async () => {
     });
     const chips = [
       ["~$50k build", "8–12 person-weeks, existing team; DuckDB path, one small VM"],
-      ["~$16k / yr run", "0.1 FTE + Power BI Pro. US park: NWS weather is $0; no flight-schedule feed unless the backtest earns it"],
+      ["~$16k / yr run", "0.1 FTE + Power BI Pro. US zoo: NWS weather is $0; no flight-schedule feed unless the backtest earns it"],
       ["Break-even ~month 15", "mid case (~$114k/yr captured, net of run cost)"],
       ["Even the conservative case pays back", "~month 26 if the model only closes a third of the gap — and if it can't beat 947 at all, Phase 0 kills it for ~$8k, not $50k"],
     ];
@@ -255,7 +257,7 @@ const main = async () => {
       shadow: { type: "outer", blur: 12, offset: 5, angle: 90, color: "6B5B3E", opacity: 0.4 },
     });
     const facts = [
-      ["FiEye", "A working demo is live", "The dashboard exists end-to-end today: forecast vs actual, an 80% planning band, and the labor-budget panel that converts misses to dollars."],
+      ["FiEye", "A working demo is live", "The dashboard exists end-to-end today: month-, week-, and day-ahead forecasts vs actual, an 80% planning band, and a labor-budget panel priced at the month-ahead lock."],
       ["FiGitBranch", "The model earned its seat", "An equal-weight LightGBM + Ridge + random-forest blend, picked by a reproducible 17-candidate backtest (single command; a neural net and 5 other families lost)."],
       ["FiCheckCircle", "The production path is written", "A 6-chapter guide in the repo: warehouse DDL, leakage-firewall feature contract, monitoring thresholds, and the Power BI DAX for every panel — reviewed for accuracy, coherence, and exec scrutiny."],
     ];
@@ -304,6 +306,7 @@ const main = async () => {
       ["The model's side is provisional", "The incumbent MAE (947) is measured on our own history; the 450 target is not yet — the demo runs on synthetic data. Phase 0 validates the model on our nine seasons before gates are set."],
       ["Year 1 is still cash-negative", "Benefits start ~month 9; mid-case break-even lands mid-year-2. If Phase 0 says the 450 target is fantasy, we stop at the kill point having spent engineering time only."],
       ["The best feature arrives late", "Advance-booking snapshots start accumulating on day one and mature around month 10; shadow is judged without them, and the model only improves after the gates pass."],
+      ["Month-ahead is the hardest horizon", "No weather is knowable 30 days out, so the month-ahead model runs on calendar, seasonality, bookings, and flight schedules alone — its MAE will sit above the week-ahead model's. The 450 target is judged at this horizon because that is where labor locks."],
       ["Regime breaks happen", "A closure or a viral season breaks any model. Built in: drift monitoring, a same-weekday fallback that always publishes, and band logic that discards broken-regime history."],
     ];
     let y = 2.15;

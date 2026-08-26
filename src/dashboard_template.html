@@ -42,7 +42,7 @@
   .goal { background:rgba(255,253,246,.72); border-left:4px solid var(--blue);
           border-radius:8px 8px 8px 20px;
           padding:12px 16px; margin:16px 0 6px; font-size:.95rem; line-height:1.45; }
-  .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  .kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
              gap:12px; margin:16px 0; }
   .kpi { background:var(--card); border:1px solid var(--line);
          border-radius:10px 10px 10px 24px; padding:14px 16px;
@@ -113,7 +113,8 @@
   td.pos { color:var(--blue-text); } td.neg { color:var(--orange-text); }
   #tableWrap { max-height:360px; overflow-y:auto; }
   @media (max-width: 520px) {
-    #tableWrap th:nth-child(5), #tableWrap td:nth-child(5) { display:none; }
+    #tableWrap th:nth-child(3), #tableWrap td:nth-child(3),
+    #tableWrap th:nth-child(6), #tableWrap td:nth-child(6) { display:none; }
   }
   details { margin:18px 0; }
   details summary { cursor:pointer; font-family:var(--serif); color:var(--sub);
@@ -129,11 +130,12 @@
     <div id="subtitle"></div>
   </header>
 
-  <div class="goal"><b>Goal:</b> forecast daily attendance <b>a week ahead</b> —
-    far enough out to set staff schedules and buy ads. The week-ahead model only
-    sees data available 7+ days before each day; the day-ahead model (shown as a
-    reference) has fresh data and marks the ceiling. Everything below either
-    measures that forecast or prices its misses.</div>
+  <div class="goal"><b>Goal:</b> forecast daily attendance at the horizons
+    decisions are made: <b>month-ahead</b> for the labor budget and roster lock
+    (that model sees only data knowable 30+ days out — no weather), and
+    <b>week-ahead</b> for schedule adjustments and ad buys (data knowable 7+
+    days out). The day-ahead model is the reference ceiling with fresh data.
+    Everything below measures those forecasts or prices their misses.</div>
 
   <section id="kpis" class="kpi-row"></section>
 
@@ -164,8 +166,9 @@
   </section>
 
   <section class="card">
-    <h2>Labor budget — what forecast misses cost</h2>
-    <p class="hint">You schedule staff to the forecast. A day that runs
+    <h2>Labor budget — misses priced at the month-ahead lock</h2>
+    <p class="hint">Labor budgets and rosters commit about a month out, so this
+      panel prices the <b>month-ahead</b> model's misses. A day that runs
       <span class="k-quiet">quieter than planned</span> wastes paid hours; a day
       that runs <span class="k-busy">busier than planned</span> leaves shifts
       short. Two assumptions convert guest misses into labor — set them to your
@@ -254,7 +257,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     return;
   }
   const M = DATA.meta, H = DATA.holdout, C = DATA.context, F = DATA.features;
-  const BLUE = '#1268c8', ORANGE = '#b3790a',
+  const BLUE = '#1268c8', ORANGE = '#b3790a', SEA = '#0e8f7a',
         GRAY = '#a5936d', GRAY_L = '#ddceaa', GRID = '#f0e8d2';
   const fmt = x => Math.round(x).toLocaleString('en-US');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -274,6 +277,9 @@ const DATA = /*__DASHBOARD_DATA__*/null;
 
   // ---------------- Decision KPIs ----------------
   const kpis = [
+    ['±' + fmt(M.month.mae) + ' guests',
+     (M.month.wape * 100).toFixed(1) + '% · at the labor lock',
+     'Average daily miss · month-ahead'],
     ['±' + fmt(M.week.mae) + ' guests',
      (M.week.wape * 100).toFixed(1) + '% of a typical day',
      'Average daily miss · week-ahead'],
@@ -325,17 +331,21 @@ const DATA = /*__DASHBOARD_DATA__*/null;
   // ---------------- Main forecast chart ----------------
   Plotly.newPlot('mainChart', [
     { x: C.dates, y: C.actual, name: 'History', mode: 'lines',
-      line: { color: GRAY, width: 1.5 }, legendrank: 1005,
+      line: { color: GRAY, width: 1.5 }, legendrank: 1006,
       hovertemplate: '%{y:,.0f}<extra>History</extra>' },
     { x: H.dates, y: H.band_lo, mode: 'lines', line: { width: 0 },
       hoverinfo: 'skip', showlegend: false },
     { x: H.dates, y: H.band_hi, mode: 'lines', line: { width: 0 },
       fill: 'tonexty', fillcolor: 'rgba(179,121,10,0.13)',
-      name: '80% range', hoverinfo: 'skip', legendrank: 1003 },
+      name: '80% range', hoverinfo: 'skip', legendrank: 1004 },
     { x: H.dates, y: H.pred_day, name: 'Day-ahead (reference)', mode: 'lines',
-      line: { color: '#8a7a5c', width: 1.2, dash: 'dot' }, legendrank: 1004,
+      line: { color: '#8a7a5c', width: 1.2, dash: 'dot' }, legendrank: 1005,
       visible: narrow ? 'legendonly' : true,
       hovertemplate: '%{y:,.0f}<extra>Day-ahead</extra>' },
+    { x: H.dates, y: H.pred_month, name: 'Month-ahead forecast',
+      mode: 'lines', legendrank: 1003,
+      line: { color: SEA, width: 2, dash: 'dashdot' },
+      hovertemplate: '%{y:,.0f}<extra>Month-ahead</extra>' },
     { x: H.dates, y: H.actual, name: 'Actual', mode: 'lines+markers',
       line: { color: BLUE, width: 2 }, legendrank: 1001,
       marker: { size: 6, line: { color: '#fffdf6', width: 1.5 } },
@@ -368,7 +378,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     const rate = Math.max(0, parseFloat(document.getElementById('rate').value) || 0);
     let overH = 0, underH = 0, overDays = 0, underDays = 0;
     const hrsShort = [], hrsWaste = [], hoverData = [];
-    H.err_week.forEach(e => {
+    H.err_month.forEach(e => {
       const hrs = Math.abs(e) / gph;
       if (e < 0) { overH += hrs; overDays++; hrsShort.push(null); hrsWaste.push(-hrs); }
       else { underH += hrs; underDays++; hrsShort.push(hrs); hrsWaste.push(null); }
@@ -431,6 +441,7 @@ const DATA = /*__DASHBOARD_DATA__*/null;
   // ---------------- Baseline comparison ----------------
   const bl = M.baselines || [];
   const perf = [
+    { name: 'Month-ahead model', mae: M.month.mae, n: H.dates.length, color: SEA },
     { name: 'Week-ahead model', mae: M.week.mae, n: H.dates.length, color: BLUE },
     { name: 'Day-ahead model', mae: M.day.mae, n: H.dates.length, color: '#8a7a5c' },
   ].concat(bl.map(b => ({ name: b.name, mae: b.mae, n: b.n, color: GRAY_L })))
@@ -646,15 +657,17 @@ const DATA = /*__DASHBOARD_DATA__*/null;
   // ---------------- Ledger ----------------
   const rows = H.dates.map((d, i) => {
     const a = H.actual[i], pw = H.pred_week[i], e = H.err_week[i];
-    return '<tr><td>' + d + '</td><td>' + fmt(a) + '</td><td>' + fmt(pw) +
+    return '<tr><td>' + d + '</td><td>' + fmt(a) + '</td><td>' +
+      fmt(H.pred_month[i]) + '</td><td>' + fmt(pw) +
       '</td><td class="' + (e >= 0 ? 'pos' : 'neg') + '">' +
       (e >= 0 ? '+' : '') + fmt(e) + '</td><td>' + fmt(H.pred_day[i]) +
       '</td><td>' + (a ? (100 * Math.abs(e) / a).toFixed(1) + '%' : '') +
       '</td></tr>';
   }).join('');
   document.getElementById('tableWrap').innerHTML =
-    '<table><thead><tr><th>Date</th><th>Actual</th><th>Week-ahead</th>' +
-    '<th>Miss</th><th>Day-ahead</th><th>Miss %</th></tr></thead><tbody>' +
+    '<table><thead><tr><th>Date</th><th>Actual</th><th>Month-ahead</th>' +
+    '<th>Week-ahead</th><th>Wk miss</th><th>Day-ahead</th><th>Wk miss %</th>' +
+    '</tr></thead><tbody>' +
     rows + '</tbody></table>';
 
   // ---------------- Methodology ----------------
@@ -666,7 +679,10 @@ const DATA = /*__DASHBOARD_DATA__*/null;
     'last 30 operating days are held out, never seen in training. The ' +
     'week-ahead model additionally drops anything needing data fresher than ' +
     '7 days before the target: ' +
-    M.week_ahead_dropped.join(', ').toLowerCase() + '.</p>' +
+    M.week_ahead_dropped.join(', ').toLowerCase() + '. The month-ahead ' +
+    'model (the labor-lock horizon) further drops everything fresher than ' +
+    '30 days — including all weather, which has no forecast skill a month ' +
+    'out.</p>' +
     '<p><b>Honest caveats.</b> Week-ahead uses realized weather where ' +
     'production would use a weather forecast (slightly flattering). Labor ' +
     'dollars are illustrative conversions of your ratio inputs, not measured ' +

@@ -285,6 +285,7 @@ CREATE TABLE IF NOT EXISTS marts.features_daily (
   "Wait_Mean_Lag_1" DOUBLE PRECISION, "Wait_Mean_Lag_7" DOUBLE PRECISION,
   -- bookings: keep the Booked_ prefix so pipeline.feature_group() buckets them
   "Booked_AsOf_7d" DOUBLE PRECISION, "Booked_AsOf_1d" DOUBLE PRECISION,
+  "Booked_AsOf_30d" DOUBLE PRECISION,   -- month-ahead labor lock (ch. 3 §3.3)
   "Booked_vs_LY_Ratio" DOUBLE PRECISION,
   _batch_id  TEXT NOT NULL,
   _built_at  TIMESTAMPTZ NOT NULL DEFAULT now(),

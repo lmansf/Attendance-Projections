@@ -80,10 +80,11 @@ LightGBM (L1), one-hot Ridge, and a random forest** on a log1p target
 `lgbm+ridge+rf equal (SHIPPED)` entry) alongside single XGBoost variants,
 per-weekday corrections, an MLP, and two-member blends, all of which lost on
 out-of-fold MAE. Re-run the sweep on your own data before trusting the
-ranking; the shipped numbers come from the synthetic demo set. The two-horizon design carries
-over unchanged: a **week-ahead** model restricted to features knowable 7+ days
-out (when schedules lock and media is bought) and a **day-ahead** reference
-ceiling.
+ranking; the shipped numbers come from the synthetic demo set. The horizon design carries over
+and generalizes: a **month-ahead** model restricted to features knowable 30+
+days out (the labor-budget/roster-lock horizon at zoos and smaller parks — no
+weather at all), a **week-ahead** model at 7+ days (schedule adjustments,
+media buys), and a **day-ahead** reference ceiling.
 
 ## What changes between the PoC and production
 

@@ -126,7 +126,13 @@ Every feature family in `src/pipeline.py` gets a declared **earliest-availabilit
 the minimum number of days before target date T at which the feature's value is known
 and final. The week-ahead model may only read features with lag ≥ 7 — the mechanical
 form of `WEEK_AHEAD_DROP` in `src/build_dashboard.py`, extended to sources the PoC
-shortcut past.
+shortcut past. Where labor budgets and rosters commit **a month out** (common at zoos
+and smaller parks), the same mechanism adds a third tier: the **month-ahead model**
+(`MONTH_AHEAD_DROP`) reads only features with lag ≥ 30 — calendar and school-break
+features, flight *schedules* (published months ahead), bookings as of T−30, and
+attendance lags of 30+ days (`Entries_Lag_35/42/364`, `Entries_MonthSafe_*`). **All
+weather is dropped at this tier**: there is no forecast skill at 30 days, and
+climatological normals are already encoded by the seasonality features.
 
 | Feature family (from `src/pipeline.py`) | Examples | Lag | Week-ahead | Day-ahead | Production source note |
 |---|---|---|---|---|---|
@@ -245,9 +251,12 @@ ON CONFLICT (park_id, target_date, run_date) DO UPDATE SET
 **Horizon routing generalizes the PoC's two fixed horizons.** The repo trains exactly
 two models; production keeps that and routes by `horizon_days`:
 
-- **h ≥ 7 → week-ahead model.** Its entire feature set has lag ≥ 7 (§3.3), so every
-  input is genuinely known at run time. The h = 7 row is the number ops locks schedules
-  to; rows at h = 8..14 give planning lead time under the same firewall.
+- **h ≥ 30 → month-ahead model** (when the deployment runs one): the labor-budget
+  and roster-lock horizon. Extend the service window to D+1..D+45 so a monthly lock
+  always has a scored, firewalled number.
+- **h = 7..29 → week-ahead model.** Its entire feature set has lag ≥ 7 (§3.3), so every
+  input is genuinely known at run time. The h = 7 row is the number weekly schedule
+  adjustments and media buys key on.
 - **h = 1..6 → day-ahead model**, with short-lag features computed **as-of the run
   date**: at h = 3, "`Entries_Lag_1`" is filled with the latest known actual (two days
   before target), not the unknowable true lag-1 value. Honest, slightly degraded at

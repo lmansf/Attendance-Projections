@@ -3,8 +3,11 @@
 Story: predict daily attendance far enough ahead to set labor schedules and
 time ad spend. Two models are trained on all but the final 30 operating days:
 
-- week-ahead  (headline): only features knowable >= 7 days before the target
-  day — the schedule-lock / media-buy horizon.
+- month-ahead (labor lock): only features knowable >= 30 days out — the
+  horizon labor budgets and rosters are actually committed at (weather is
+  dropped entirely; it is unknowable a month ahead).
+- week-ahead  (adjustment + media-buy horizon): features knowable >= 7 days
+  before the target day.
 - day-ahead   (reference): all features, including yesterday's attendance —
   the ceiling for day-of fine-tuning.
 
@@ -62,6 +65,18 @@ ONEHOT_COLS = ["DayOfWeek", "Month"]  # categorical for the Ridge member
 WEEK_AHEAD_DROP = ["Entries_Lag_1", "Entries_Roll_Mean_7", "Entries_Roll_Std_7",
                    "Entries_WoW_Diff", "Wait_Mean_Lag_1"]
 
+# Additionally dropped at the ~30-day labor-lock horizon: every attendance
+# signal fresher than 30 days, ride waits, and ALL weather (no skill at a
+# month out - the model leans on calendar, seasonality, flight schedules
+# and old lags instead).
+MONTH_AHEAD_DROP = WEEK_AHEAD_DROP + [
+    "Entries_Lag_7", "Entries_Lag_14", "Entries_Lag_21", "Entries_Lag_28",
+    "Entries_SameDOW_Mean4", "Entries_WkSafe_Mean7", "Entries_WkSafe_Std7",
+    "Entries_Lag7_minus_14", "Wait_Mean_Lag_7",
+    "Avg_Temp_C", "Max_Temp_C", "Min_Temp_C", "Avg_Humidity_pct",
+    "Total_Rain_mm", "Avg_Wind_ms", "Avg_Clouds_pct",
+]
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # Column -> reader-facing label. Everything shown in the dashboard goes
@@ -72,7 +87,11 @@ FEATURE_LABELS = {
     "Entries_Lag_14": "Attendance 14 days ago",
     "Entries_Lag_21": "Attendance 21 days ago",
     "Entries_Lag_28": "Attendance 28 days ago",
+    "Entries_Lag_35": "Attendance 35 days ago",
+    "Entries_Lag_42": "Attendance 42 days ago",
     "Entries_Lag_364": "Attendance last year",
+    "Entries_MonthSafe_Mean28": "28-day avg (month-safe)",
+    "Entries_MonthSafe_Std28": "28-day volatility (month-safe)",
     "Entries_WkSafe_Mean7": "7-day avg (week-safe)",
     "Entries_WkSafe_Std7": "7-day volatility (week-safe)",
     "Entries_Lag7_minus_14": "Lag-7 vs lag-14 change",
@@ -229,23 +248,30 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
 
     all_cols = [c for c in df.columns if c not in ("Date", "Entries")]
     week_cols = [c for c in all_cols if c not in WEEK_AHEAD_DROP]
+    month_cols = [c for c in all_cols if c not in MONTH_AHEAD_DROP]
     y = df["Entries"].values.astype(float)
 
     hold = np.arange(len(df) - holdout_days, len(df))
     train = np.arange(len(df) - holdout_days)
     actual = y[hold]
 
-    # ---- two horizons ----
+    # ---- three horizons ----
     model_day = _fit(df[all_cols].iloc[train], y[train])
     model_week = _fit(df[week_cols].iloc[train], y[train])
+    model_month = _fit(df[month_cols].iloc[train], y[train])
     pred_day = _predict(model_day, df[all_cols].iloc[hold])
     pred_week = _predict(model_week, df[week_cols].iloc[hold])
+    pred_month = _predict(model_month, df[month_cols].iloc[hold])
     err_day = actual - pred_day
     err_week = actual - pred_week
+    err_month = actual - pred_month
 
     m_day = _metrics(actual, pred_day)
     m_week = _metrics(actual, pred_week)
-    worst_i = int(np.argmax(np.abs(err_week)))
+    m_month = _metrics(actual, pred_month)
+    # the labor panel plans at the month-ahead lock, so "worst day" is the
+    # largest month-ahead miss
+    worst_i = int(np.argmax(np.abs(err_month)))
 
     # ---- soft-day detection (marketing lens, week-ahead) ----
     k = max(1, round(holdout_days * 0.25))
@@ -395,14 +421,17 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
             "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             "window_start": hold_dates[0], "window_end": hold_dates[-1],
             "n_train": int(len(train)),
-            "week": m_week, "day": m_day,
+            "week": m_week, "day": m_day, "month": m_month,
             "soft": {"k": k, "hits": hits, "false_alarms": k - hits,
                      "actual_idx": actual_soft, "pred_idx": pred_soft},
             "worst": {"date": hold_dates[worst_i],
-                      "err": float(err_week[worst_i])},
+                      "err": float(err_month[worst_i])},
             "avg_attendance": float(actual.mean()),
             "week_ahead_dropped": [feature_label(c) for c in WEEK_AHEAD_DROP
                                    if c in all_cols],
+            "month_extra_dropped": [feature_label(c) for c in MONTH_AHEAD_DROP
+                                    if c in all_cols
+                                    and c not in WEEK_AHEAD_DROP],
             "baselines": baselines,
             "best_baseline": best_baseline,
             "tolerance": {"thresholds": tol_thresholds, "model": tol_model,
@@ -415,6 +444,8 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
                     "actual": ctx["Entries"].tolist()},
         "holdout": {"dates": hold_dates, "actual": actual.tolist(),
                     "pred_week": pred_week.tolist(), "err_week": err_week.tolist(),
+                    "pred_month": pred_month.tolist(),
+                    "err_month": err_month.tolist(),
                     "pred_day": pred_day.tolist(), "err_day": err_day.tolist(),
                     "band_lo": band_lo.tolist(), "band_hi": band_hi.tolist()},
         "features": features_payload,
@@ -432,7 +463,8 @@ def build(synthetic: bool, park: str, out_path: Path, holdout_days: int = 30,
 
     print(f"[{mode}] {park}: trained on {len(train)} days, "
           f"forecast {hold_dates[0]} -> {hold_dates[-1]}")
-    print(f"  week-ahead MAE {m_week['mae']:.1f} (WAPE {m_week['wape']:.1%}) | "
+    print(f"  month-ahead MAE {m_month['mae']:.1f} (WAPE {m_month['wape']:.1%}) | "
+          f"week-ahead MAE {m_week['mae']:.1f} (WAPE {m_week['wape']:.1%}) | "
           f"day-ahead MAE {m_day['mae']:.1f} (WAPE {m_day['wape']:.1%})")
     print(f"  soft days caught {hits}/{k} | skill vs '{best['name']}': "
           f"{best_baseline['skill']:+.1%} | band coverage {band_cov}/{holdout_days}")

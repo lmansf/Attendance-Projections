@@ -14,7 +14,7 @@ One star, six tables. Grain stated exactly, because two of the facts are easy to
 |---|---|---|---|
 | `FactForecast` | `marts.v_forecasts_pbi` (view below) | `park_id × target_date × run_date` | Full append-only history (README ground rule 4). `is_latest_run` flags the row ops should plan on |
 | `FactActuals` | `staging.attendance_daily`, or `staging.admissions` aggregated to `park_id × operating_date × ticket_type × sales_channel` for drill | day, or day × ticket/channel | Either grain works: `SUM(entries)` is additive. Keep accuracy facts at day grain regardless |
-| `FactAccuracy` | `marts.forecast_accuracy` | `park_id × target_date × horizon_days` | All horizons 1–14 are scored (ch. 3 §3.5); the report's default filters show 1 (day-ahead reference) and 7 (the decision horizon). Carries `p50`, `actual_entries`, `abs_error`, `pct_error`, `in_band`, `is_fallback` |
+| `FactAccuracy` | `marts.forecast_accuracy` | `park_id × target_date × horizon_days` | Every horizon the service writes is scored (ch. 3 §3.5); the report's default filters show 1 (day-ahead reference), 7 (weekly adjustments), and — where labor locks monthly — 30. Carries `p50`, `actual_entries`, `abs_error`, `pct_error`, `in_band`, `is_fallback` |
 | `FactBaselines` | `marts.baselines` (DDL in §4.4) | `park_id × target_date × baseline_name` | The rule-of-thumb values, precomputed — see §4.4 for why not DAX |
 | `DimDate` | `ref.dim_date` view, or DAX `CALENDAR()` | calendar date, contiguous, no gaps | **Mark as date table** (Table tools → Mark as date table), and turn off *Auto date/time* in Options — otherwise every date column grows a hidden calendar |
 | `DimPark` | `ref.parks` | `park_id` | `park_name`, `park_tz`, airports; RLS anchor (§4.6) |

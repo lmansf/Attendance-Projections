@@ -260,6 +260,12 @@ def main():
                  blend=("ridge", 0.3)))
     R.append(run_equal_blend(df, "lgbm+ridge+rf equal (SHIPPED)",
                              ["lgbm", "ridge", "rf"], week1))
+    # the month-ahead (labor-lock) variant of the shipped blend: features
+    # knowable >= 30 days out only (no weather, no fresh lags)
+    from build_dashboard import MONTH_AHEAD_DROP
+    month1 = [c for c in week1 if c not in MONTH_AHEAD_DROP]
+    R.append(run_equal_blend(df, "SHIPPED blend, MONTH-ahead cols",
+                             ["lgbm", "ridge", "rf"], month1))
 
     best = min(R, key=lambda r: r["mae"])
     print(f"\nBEST: {best['name']}  MAE {best['mae']:.1f} "
