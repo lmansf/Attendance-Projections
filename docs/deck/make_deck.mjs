@@ -135,7 +135,7 @@ const main = async () => {
     const s = pres.addSlide();
     s.background = { color: WHITE };
     kicker(s, "The value, in our numbers");
-    title(s, "Halving the miss: ~$86k–$143k a year.");
+    title(s, "Halving the miss: ~$98k–$163k a year.");
     // left: assumptions table
     const tbl = [
       [{ text: "Assumption", options: { bold: true, color: MUTED } }, { text: "Value", options: { bold: true, color: MUTED } }, { text: "Status", options: { bold: true, color: MUTED } }],
@@ -144,7 +144,7 @@ const main = async () => {
       ["Model MAE (target)", "450 guests", { text: "target — Phase 0 validates", options: { color: FLAME } }],
       ["Guests / scalable staff-hour", "10", { text: "estimate — to confirm", options: { color: FLAME } }],
       ["Loaded cost / staff-hour", "$18", "$15 wage + ~20% load"],
-      ["Operating days / year", "320", "our calendar"],
+      ["Operating days / year", "364", "open year-round"],
       ["Capture rate", "30–50%", "min shifts, fixed posts"],
       ["Forecast horizon", "month-ahead", "matches the labor lock"],
     ];
@@ -158,7 +158,7 @@ const main = async () => {
       ["497", "fewer mis-forecast guests per day (947 → 450)"],
       ["~50 hrs", "staff-hours re-aimed daily (÷ 10 guests/staff-hour)"],
       ["$895 / day", "at the $18 loaded rate"],
-      ["~$286k / yr", "gross misallocation removed (× 320 days)"],
+      ["~$326k / yr", "gross misallocation removed (× 364 days)"],
     ];
     let y = 2.1;
     for (const [big, small] of steps) {
@@ -167,7 +167,7 @@ const main = async () => {
       y += 0.68;
     }
     s.addShape("roundRect", { x: 7.3, y: 5.0, w: 5.35, h: 1.5, rectRadius: 0.12, fill: { color: INK } });
-    s.addText("$86k–$143k / yr", { x: 7.6, y: 5.2, w: 4.8, h: 0.6, fontFace: SANS, fontSize: 30, bold: true, color: CREAM, margin: 0 });
+    s.addText("$98k–$163k / yr", { x: 7.6, y: 5.2, w: 4.8, h: 0.6, fontFace: SANS, fontSize: 30, bold: true, color: CREAM, margin: 0 });
     s.addText("captured at a 30–50% scheduling capture rate — every row above is a live slider in the Power BI what-if.",
       { x: 7.6, y: 5.8, w: 4.8, h: 0.6, fontFace: SANS, fontSize: 11.5, color: "D8CDB4", margin: 0 });
     s.addText("A range, never a point: the incumbent side is measured; Phase 0 validates the model side on nine seasons of our own data.",
@@ -180,10 +180,10 @@ const main = async () => {
     const s = pres.addSlide();
     s.background = { color: WHITE };
     kicker(s, "Net of costs");
-    title(s, "Break-even ~month 15 in the mid case.");
+    title(s, "Break-even ~month 14 in the mid case.");
     s.addChart("line", [
-      { name: "Mid case (450 MAE, 40% capture)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -25, 24, 73, 122, 172] },
-      { name: "Conservative (model only reaches 650 MAE, 30%)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -41, -24, -6, 12, 29] },
+      { name: "Mid case (450 MAE, 40% capture)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -21, 36, 93, 150, 207] },
+      { name: "Conservative (model only reaches 650 MAE, 30%)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -39, -18, 3, 24, 45] },
     ], {
       x: M, y: 2.0, w: 7.3, h: 4.6,
       chartColors: [COBALT, AMBER],
@@ -201,8 +201,8 @@ const main = async () => {
     const chips = [
       ["~$50k build", "8–12 person-weeks, existing team; DuckDB path, one small VM"],
       ["~$16k / yr run", "0.1 FTE + Power BI Pro. US zoo: NWS weather is $0; no flight-schedule feed unless the backtest earns it"],
-      ["Break-even ~month 15", "mid case (~$114k/yr captured, net of run cost)"],
-      ["Even the conservative case pays back", "~month 26 if the model only closes a third of the gap — and if it can't beat 947 at all, Phase 0 kills it for ~$8k, not $50k"],
+      ["Break-even ~month 14", "mid case (~$130k/yr captured, net of run cost)"],
+      ["Even the conservative case pays back", "~month 23 if the model only closes a third of the gap — and if it can't beat 947 at all, Phase 0 kills it for ~$8k, not $50k"],
     ];
     let y = 2.0;
     for (const [h, b] of chips) {
@@ -304,7 +304,7 @@ const main = async () => {
     title(s, "The caveats, before anyone else finds them.");
     const rows = [
       ["The model's side is provisional", "The incumbent MAE (947) is measured on our own history; the 450 target is not yet — the demo runs on synthetic data. Phase 0 validates the model on our nine seasons before gates are set."],
-      ["Year 1 is still cash-negative", "Benefits start ~month 9; mid-case break-even lands mid-year-2. If Phase 0 says the 450 target is fantasy, we stop at the kill point having spent engineering time only."],
+      ["Year 1 is still cash-negative", "Benefits start ~month 9; mid-case break-even lands early in year 2. If Phase 0 says the 450 target is fantasy, we stop at the kill point having spent engineering time only."],
       ["The best feature arrives late", "Advance-booking snapshots start accumulating on day one and mature around month 10; shadow is judged without them, and the model only improves after the gates pass."],
       ["Month-ahead is the hardest horizon", "No weather is knowable 30 days out, so the month-ahead model runs on calendar, seasonality, bookings, and flight schedules alone — its MAE will sit above the week-ahead model's. The 450 target is judged at this horizon because that is where labor locks."],
       ["Regime breaks happen", "A closure or a viral season breaks any model. Built in: drift monitoring, a same-weekday fallback that always publishes, and band logic that discards broken-regime history."],
