@@ -8,14 +8,17 @@ finds them.
 
 ## The numbers in the deck
 
-Park profile used throughout: attendance **600–6,000/day, ~1,500 average**,
-**~300 employees**, current projections missing by **~±400 guests/day
-(internal estimate)**. Derived mid-case: halving the miss ≈ **$37k–$62k/yr
-captured** (at 10 guests/scalable-staff-hour, $22 loaded, 320 operating days,
-30–50% capture), against ~$50k build + ~$16k/yr run → **break-even ~month
-30** (mid) / ~month 21 (upside). Every estimated input is flagged on its
-slide and is replaced by measurement in Phase 0 (model, on our data) and
-Phase 1 (incumbent, logged in shadow). Full derivation and sensitivity:
+Park actuals used throughout: average attendance **3,285/day** (range
+600–6,000), **~300 employees**, incumbent projections at a **measured MAE of
+947 guests/day** (28.8% of an average day; ticketing history 10/2017–7/2026),
+model target **MAE 450**, wage **$15/hr** (≈ $18 loaded with ~20% employer
+taxes/benefits). Derived mid-case: closing the 947→450 gap ≈ **$286k/yr
+gross**, **$86k–$143k/yr captured** at a 30–50% scheduling capture rate,
+against ~$50k build + ~$16k/yr run → **break-even ~month 15** (mid) /
+~month 26 (conservative: model only reaches MAE 650 at 30% capture). Still
+estimated and flagged on the slides: guests-per-scalable-staff-hour (10) and
+the capture rate; the model target is validated in Phase 0 on the nine
+seasons of history. Full derivation and sensitivity:
 [production guide, chapter 6](../production-guide/06-rollout.md).
 
 ## Rebuilding

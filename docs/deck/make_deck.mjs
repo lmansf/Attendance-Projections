@@ -1,8 +1,9 @@
 // Generates attendance-forecast-roi.pptx — a short, ROI-first deck for a VP of
-// Business Intelligence. Numbers use THIS park's profile (attendance 600-6,000,
-// avg ~1,500/day, incumbent miss ~±400 guests/day estimated, ~300 employees);
-// every estimated input is labeled and gets replaced by measurement in
-// Phase 0/1. Rebuild: node make_deck.mjs  (from this directory).
+// Business Intelligence. Numbers use THIS park's actuals: avg attendance 3,285,
+// measured incumbent MAE 947 guests/day, model target MAE 450, $15 base wage
+// (~$18 loaded), ~300 employees, ticketing history 10/2017-7/2026. Estimated
+// inputs (guests/staff-hour, capture rate) are labeled as such on the slides.
+// Rebuild: node make_deck.mjs  (from this directory).
 import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -102,11 +103,11 @@ const main = async () => {
     const s = pres.addSlide();
     s.background = { color: WHITE };
     kicker(s, "The decision problem");
-    title(s, "Staffing 1,500 guests on a ±400 guess.");
+    title(s, "Staffing 3,285 guests on a 947-guest miss.");
     const rows = [
       ["FiLock", "Schedules lock ~7 days out", "Rosters for our ~300 employees are set before the week is knowable."],
       ["FiVolume2", "Ad spend commits at the same horizon", "Promos and media buys need soft days flagged a week early to act at all."],
-      ["FiHelpCircle", "Today's forecast is a rule of thumb", "Attendance runs 600–6,000. Our current projections miss by roughly ±400 guests — an estimate, because nothing measures it. That gap is itself the first finding."],
+      ["FiHelpCircle", "Today's miss is measured, and it is large", "Against our own 10/2017–7/2026 history, current projections average a 947-guest daily miss (MAE) — a 29% error on a 3,285-guest average day."],
     ];
     let y = 2.15;
     for (const [icn, h, b] of rows) {
@@ -117,13 +118,13 @@ const main = async () => {
     }
     // right: what ±400 means, as stats
     s.addShape("roundRect", { x: 8.1, y: 2.1, w: 4.5, h: 4.6, rectRadius: 0.12, fill: { color: SAND } });
-    s.addText("What a ±400-guest miss costs, daily", {
+    s.addText("What a 947-guest average miss costs, daily", {
       x: 8.45, y: 2.4, w: 3.9, h: 0.6, fontFace: SANS, fontSize: 13, bold: true, color: MUTED, margin: 0 });
-    s.addText("±27%", { x: 8.45, y: 3.0, w: 3.9, h: 0.85, fontFace: SANS, fontSize: 54, bold: true, color: FLAME, margin: 0 });
-    s.addText("average error rate on a 1,500-guest day", {
+    s.addText("±29%", { x: 8.45, y: 3.0, w: 3.9, h: 0.85, fontFace: SANS, fontSize: 54, bold: true, color: FLAME, margin: 0 });
+    s.addText("average error rate — measured, not guessed", {
       x: 8.45, y: 3.85, w: 3.9, h: 0.4, fontFace: SANS, fontSize: 12, color: BODY, margin: 0 });
-    s.addText("~40 staff-hours", { x: 8.45, y: 4.5, w: 3.9, h: 0.6, fontFace: SANS, fontSize: 28, bold: true, color: INK, margin: 0 });
-    s.addText("planned against the wrong number every day — roughly five 8-hour shifts (at ~10 guests served per scalable staff-hour)", {
+    s.addText("~95 staff-hours", { x: 8.45, y: 4.5, w: 3.9, h: 0.6, fontFace: SANS, fontSize: 28, bold: true, color: INK, margin: 0 });
+    s.addText("planned against the wrong number every day — roughly twelve 8-hour shifts (at ~10 guests served per scalable staff-hour, our one estimated input)", {
       x: 8.45, y: 5.1, w: 3.9, h: 1.2, fontFace: SANS, fontSize: 12, color: BODY, margin: 0 });
     footer(s, 2);
   }
@@ -133,15 +134,15 @@ const main = async () => {
     const s = pres.addSlide();
     s.background = { color: WHITE };
     kicker(s, "The value, in our numbers");
-    title(s, "Halving the miss: ~$37k–$62k a year.");
+    title(s, "Halving the miss: ~$86k–$143k a year.");
     // left: assumptions table
     const tbl = [
       [{ text: "Assumption", options: { bold: true, color: MUTED } }, { text: "Value", options: { bold: true, color: MUTED } }, { text: "Status", options: { bold: true, color: MUTED } }],
-      ["Average daily attendance", "1,500", "ours, from ticketing"],
-      ["Incumbent miss", "±400 guests", { text: "estimate — Phase 1 measures it", options: { color: FLAME } }],
-      ["Model miss (target)", "±225 guests", { text: "Phase 0 measures it", options: { color: FLAME } }],
-      ["Guests / scalable staff-hour", "10", "our labor standards"],
-      ["Loaded cost / staff-hour", "$22", "finance"],
+      ["Average daily attendance", "3,285", "measured, from ticketing"],
+      ["Incumbent MAE", "947 guests", "measured, 10/2017–7/2026"],
+      ["Model MAE (target)", "450 guests", { text: "target — Phase 0 validates", options: { color: FLAME } }],
+      ["Guests / scalable staff-hour", "10", { text: "estimate — to confirm", options: { color: FLAME } }],
+      ["Loaded cost / staff-hour", "$18", "$15 wage + ~20% load"],
       ["Operating days / year", "320", "our calendar"],
       ["Capture rate", "30–50%", "min shifts, fixed posts"],
     ];
@@ -152,10 +153,10 @@ const main = async () => {
     });
     // right: derivation stack
     const steps = [
-      ["175", "fewer mis-forecast guests per day (±400 → ±225)"],
-      ["17.5 hrs", "staff-hours re-aimed daily (÷ 10 guests/staff-hour)"],
-      ["$385 / day", "at the $22 loaded rate"],
-      ["~$123k / yr", "gross misallocation removed (× 320 days)"],
+      ["497", "fewer mis-forecast guests per day (947 → 450)"],
+      ["~50 hrs", "staff-hours re-aimed daily (÷ 10 guests/staff-hour)"],
+      ["$895 / day", "at the $18 loaded rate"],
+      ["~$286k / yr", "gross misallocation removed (× 320 days)"],
     ];
     let y = 2.1;
     for (const [big, small] of steps) {
@@ -164,10 +165,10 @@ const main = async () => {
       y += 0.68;
     }
     s.addShape("roundRect", { x: 7.3, y: 5.0, w: 5.35, h: 1.5, rectRadius: 0.12, fill: { color: INK } });
-    s.addText("$37k–$62k / yr", { x: 7.6, y: 5.2, w: 4.8, h: 0.6, fontFace: SANS, fontSize: 30, bold: true, color: CREAM, margin: 0 });
+    s.addText("$86k–$143k / yr", { x: 7.6, y: 5.2, w: 4.8, h: 0.6, fontFace: SANS, fontSize: 30, bold: true, color: CREAM, margin: 0 });
     s.addText("captured at a 30–50% scheduling capture rate — every row above is a live slider in the Power BI what-if.",
       { x: 7.6, y: 5.8, w: 4.8, h: 0.6, fontFace: SANS, fontSize: 11.5, color: "D8CDB4", margin: 0 });
-    s.addText("A range, never a point: the deck's only promise is to measure. Phase 0/1 replace every estimate with our own data.",
+    s.addText("A range, never a point: the incumbent side is measured; Phase 0 validates the model side on nine seasons of our own data.",
       { x: M, y: 6.65, w: 5.9, h: 0.5, fontFace: SANS, fontSize: 10.5, italic: true, color: MUTED, margin: 0 });
     footer(s, 3);
   }
@@ -177,10 +178,10 @@ const main = async () => {
     const s = pres.addSlide();
     s.background = { color: WHITE };
     kicker(s, "Net of costs");
-    title(s, "Payback in year 2–3; year 1 is negative.");
+    title(s, "Break-even ~month 15 in the mid case.");
     s.addChart("line", [
-      { name: "Mid case (±225 model, 40% capture)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -43, -28, -14, 1, 15] },
-      { name: "Upside (±200 model, 50% capture)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -38, -13, 12, 36, 61] },
+      { name: "Mid case (450 MAE, 40% capture)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -25, 24, 73, 122, 172] },
+      { name: "Conservative (model only reaches 650 MAE, 30%)", labels: ["0", "6", "12", "18", "24", "30", "36"], values: [0, -50, -41, -24, -6, 12, 29] },
     ], {
       x: M, y: 2.0, w: 7.3, h: 4.6,
       chartColors: [COBALT, AMBER],
@@ -198,8 +199,8 @@ const main = async () => {
     const chips = [
       ["~$50k build", "8–12 person-weeks, existing team; DuckDB path, one small VM"],
       ["~$16k / yr run", "0.1 FTE + Power BI Pro. US park: NWS weather is $0; no flight-schedule feed unless the backtest earns it"],
-      ["Break-even ~month 30", "mid case; ~month 21 if the incumbent really is ±400"],
-      ["Conservative case doesn't pay back", "and that is what the phase gates are for — we find out for ~$8k, not $50k"],
+      ["Break-even ~month 15", "mid case (~$114k/yr captured, net of run cost)"],
+      ["Even the conservative case pays back", "~month 26 if the model only closes a third of the gap — and if it can't beat 947 at all, Phase 0 kills it for ~$8k, not $50k"],
     ];
     let y = 2.0;
     for (const [h, b] of chips) {
@@ -300,8 +301,8 @@ const main = async () => {
     kicker(s, "What we are not claiming", FLAME);
     title(s, "The caveats, before anyone else finds them.");
     const rows = [
-      ["Every accuracy number so far is provisional", "The demo runs on synthetic data; the ±400 incumbent figure is an internal estimate. Phase 0 re-measures the model and Phase 1 measures the incumbent — gates are set on those, not on this deck."],
-      ["Year 1 is cash-negative", "The case turns on year 2 and beyond. If shadow says the mid case is wrong, we stop at the kill point having spent engineering time only."],
+      ["The model's side is provisional", "The incumbent MAE (947) is measured on our own history; the 450 target is not yet — the demo runs on synthetic data. Phase 0 validates the model on our nine seasons before gates are set."],
+      ["Year 1 is still cash-negative", "Benefits start ~month 9; mid-case break-even lands mid-year-2. If Phase 0 says the 450 target is fantasy, we stop at the kill point having spent engineering time only."],
       ["The best feature arrives late", "Advance-booking snapshots start accumulating on day one and mature around month 10; shadow is judged without them, and the model only improves after the gates pass."],
       ["Regime breaks happen", "A closure or a viral season breaks any model. Built in: drift monitoring, a same-weekday fallback that always publishes, and band logic that discards broken-regime history."],
     ];
@@ -324,7 +325,7 @@ const main = async () => {
     s.addText("Approve Phase 0: four weeks, our own data, a go/no-go with evidence.", {
       x: M, y: 2.2, w: 11.9, h: 1.6, fontFace: HEAD, fontSize: 38, bold: true, color: CREAM, margin: 0 });
     const bullets = [
-      "One ticketing extract (2+ seasons of daily admissions) — no integrations, no vendors",
+      "One ticketing extract — 10/2017 to 7/2026, nearly nine seasons of daily admissions; no integrations, no vendors",
       "The existing backtest re-run on our numbers: model vs our rule of thumb, out-of-fold",
       "Output: a measured accuracy delta and a re-priced ROI table — then, and only then, the shadow decision",
     ];
